@@ -1,50 +1,67 @@
 import React from 'react';
+import { connect } from 'react-redux';
 import OptionList from '../containers/optionlist';
 import ChartDetail from '../containers/chart';
+import { fetchDashboardSummary, fetchReadings, fetchCost, fetchAppliances, setPeriod } from '../actions/index';
 import './app.css';
 
 class App extends React.Component {
 
     componentDidMount() {
-
+        // Fetch initial data
+        this.props.fetchDashboardSummary();
+        this.props.fetchReadings('month');
+        this.props.fetchCost('month');
+        this.props.fetchAppliances('month');
 
         var todayElem = document.getElementById('today');
         var monthElem = document.getElementById('month');
         var yearElem = document.getElementById('year');
 
+        const handlePeriodChange = (period) => {
+            this.props.setPeriod(period);
+            this.props.fetchReadings(period);
+            this.props.fetchCost(period);
+            this.props.fetchAppliances(period);
+        };
 
-
-        monthElem.addEventListener('click', function () {
-
-
+        monthElem.addEventListener('click', () => {
             monthElem.classList.add("active");
             yearElem.classList.remove("active");
             todayElem.classList.remove("active");
-
-
+            handlePeriodChange('month');
         });
 
-        yearElem.addEventListener('click', function () {
-
+        yearElem.addEventListener('click', () => {
             monthElem.classList.remove("active");
             yearElem.classList.add("active");
             todayElem.classList.remove("active");
-
+            handlePeriodChange('year');
         });
 
-        todayElem.addEventListener('click', function () {
-
+        todayElem.addEventListener('click', () => {
             monthElem.classList.remove("active");
             yearElem.classList.remove("active");
             todayElem.classList.add("active");
-
-
+            handlePeriodChange('today');
         });
-
-
 
         document.getElementById('Dashboard').click();
         document.getElementById('month').click();
+        
+        // Auto-refresh data every 30 seconds
+        this.refreshInterval = setInterval(() => {
+            this.props.fetchDashboardSummary();
+            this.props.fetchReadings(this.props.period);
+            this.props.fetchCost(this.props.period);
+            this.props.fetchAppliances(this.props.period);
+        }, 30000);
+    }
+
+    componentWillUnmount() {
+        if (this.refreshInterval) {
+            clearInterval(this.refreshInterval);
+        }
     }
 
     componentDidUpdate() {
@@ -176,4 +193,21 @@ class App extends React.Component {
     }
 }
 
-export default App;
+const mapStateToProps = (state) => {
+    return {
+        period: state.energy.period,
+        dashboard: state.energy.dashboard,
+        loading: state.energy.loading,
+        error: state.energy.error
+    };
+};
+
+const mapDispatchToProps = {
+    fetchDashboardSummary,
+    fetchReadings,
+    fetchCost,
+    fetchAppliances,
+    setPeriod
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(App);

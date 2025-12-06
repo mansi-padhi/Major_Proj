@@ -1,0 +1,26 @@
+{
+  "name": "energy-monitoring-backend",
+  "version": "1.0.0",
+  "description": "IoT Energy Monitoring Backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "seed": "node utils/seedData.js",
+    "seed:realistic": "node utils/seedDataRealistic.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["iot", "energy", "monitoring", "esp32"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongoose": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}

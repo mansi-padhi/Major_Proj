@@ -18,6 +18,17 @@ import chartConfigs5, { fifth_chart_today, fifth_chart_month, fifth_chart_year }
 import chartConfigs6, { sixth_chart_today, sixth_chart_month, sixth_chart_year } from '../chart-configs/dashboard_sixth_chart';
 import chartConfigs7, { seventh_chart_today, seventh_chart_month, seventh_chart_year } from '../chart-configs/dashboard_seventh_chart';
 
+// Import dynamic chart configs
+import {
+    getDashboardChart1Config,
+    getDashboardChart2Config,
+    getDashboardChart3Config,
+    getDashboardChart4Config,
+    getDashboardChart5Config,
+    getDashboardChart6Config,
+    getDashboardChart7Config
+} from '../chart-configs/dashboard_charts_dynamic';
+
 import emissionchart, { carbonfootprint_month_data, carbonfootprint_today_data, carbonfootprint_year_data, green_energy_stats_today_data, green_energy_stats_month_data, green_energy_stats_year_data } from '../emissions/emission_data';
 import usagechart, { usage_today, usage_yesterday, usage_thismonth, usage_lastmonth, usage_thisyear, usage_lastyear } from '../usage/usage_data1';
 import costchart, { cost_last_month, cost_this_month, cost_last_day, cost_this_day, cost_last_year, cost_this_year } from '../cost/cost_data1';
@@ -51,6 +62,15 @@ class ChartDetail extends Component {
     }
 
     componentDidUpdate() {
+        // Safety check: ensure user prop exists
+        if (!this.props.user || !this.props.user.id) {
+            return;
+        }
+
+        // Debug logging
+        console.log('Chart componentDidUpdate - user.id:', this.props.user.id);
+        console.log('Chart componentDidUpdate - energy prop:', this.props.energy);
+
         var t = document.getElementById("today");
         var m = document.getElementById("month");
         var y = document.getElementById("year");
@@ -102,51 +122,112 @@ class ChartDetail extends Component {
             document.getElementById("parent6").style.height = "auto";
 
 
+            // Use dynamic data if available, otherwise fall back to static data
+            const useDynamicData = this.props.energy && this.props.energy.dashboard;
+            const monthReadings = this.props.energy && this.props.energy.readings && this.props.energy.readings.month;
 
+            console.log('useDynamicData:', useDynamicData);
+            console.log('monthReadings:', monthReadings);
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs1} />,
-                document.getElementById('chart1'));
+            if (useDynamicData && monthReadings) {
+                console.log('✅ Using DYNAMIC data for charts!');
+                // Render with dynamic data
+                const chart1Data = getDashboardChart1Config(this.props.energy.dashboard, 'month');
+                const chart2Data = getDashboardChart2Config(monthReadings, 'month');
+                const chart3Data = getDashboardChart3Config(monthReadings, 'month');
+                const chart4Data = getDashboardChart4Config(monthReadings, 'month');
+                const chart5Data = getDashboardChart5Config(monthReadings, 'month');
+                const chart6Data = getDashboardChart6Config(monthReadings, 'month');
+                const chart7Data = getDashboardChart7Config(monthReadings, 'month');
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs2} />,
-                document.getElementById('chart2'));
+                ReactDOM.render(
+                    <ReactFC type="doughnut2d" width="100%" height="300" id="mychart1" dataFormat="JSON" dataSource={chart1Data} />,
+                    document.getElementById('chart1'));
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs3} />,
-                document.getElementById('chart3'));
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart2" dataFormat="JSON" dataSource={chart2Data} />,
+                    document.getElementById('chart2'));
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs4} />,
-                document.getElementById('chart4'));
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart3" dataFormat="JSON" dataSource={chart3Data} />,
+                    document.getElementById('chart3'));
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs5} />,
-                document.getElementById('chart5'));
-            ReactDOM.render(
-                <ReactFC {...chartConfigs6} />,
-                document.getElementById('chart6'));
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart4" dataFormat="JSON" dataSource={chart4Data} />,
+                    document.getElementById('chart4'));
 
-            ReactDOM.render(
-                <ReactFC {...chartConfigs7} />,
-                document.getElementById('chart7'));
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart5" dataFormat="JSON" dataSource={chart5Data} />,
+                    document.getElementById('chart5'));
+
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart6" dataFormat="JSON" dataSource={chart6Data} />,
+                    document.getElementById('chart6'));
+
+                ReactDOM.render(
+                    <ReactFC type="msline" width="100%" height="300" id="mychart10" dataFormat="JSON" dataSource={chart7Data} />,
+                    document.getElementById('chart7'));
+            } else {
+                // Fallback to static data
+                console.log('⚠️ Using STATIC data - dynamic data not available');
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs1} />,
+                    document.getElementById('chart1'));
+
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs2} />,
+                    document.getElementById('chart2'));
+
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs3} />,
+                    document.getElementById('chart3'));
+
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs4} />,
+                    document.getElementById('chart4'));
+
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs5} />,
+                    document.getElementById('chart5'));
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs6} />,
+                    document.getElementById('chart6'));
+
+                ReactDOM.render(
+                    <ReactFC {...chartConfigs7} />,
+                    document.getElementById('chart7'));
+            }
 
             // logic for today button when the user is on dashboard
 
             // var t = document.getElementById("today");
+            const self = this;
 
             t.onclick = function () {
 
                 document.getElementById("date").innerHTML = moment().format('MMMM, Do YYYY');
 
+                // Use dynamic data if available
+                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const todayReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.today;
 
-                var todaynewdata1 = first_chart_today;
-                var todaynewdata2 = second_chart_today;
-                var todaynewdata3 = third_chart_today;
-                var todaynewdata4 = fourth_chart_today;
-                var todaynewdata5 = fifth_chart_today;
-                var todaynewdata6 = sixth_chart_today;
-                var todaynewdata7 = seventh_chart_today;
+                if (useDynamicData && todayReadings) {
+                    var todaynewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'today');
+                    var todaynewdata2 = getDashboardChart2Config(todayReadings, 'today');
+                    var todaynewdata3 = getDashboardChart3Config(todayReadings, 'today');
+                    var todaynewdata4 = getDashboardChart4Config(todayReadings, 'today');
+                    var todaynewdata5 = getDashboardChart5Config(todayReadings, 'today');
+                    var todaynewdata6 = getDashboardChart6Config(todayReadings, 'today');
+                    var todaynewdata7 = getDashboardChart7Config(todayReadings, 'today');
+                } else {
+                    var todaynewdata1 = first_chart_today;
+                    var todaynewdata2 = second_chart_today;
+                    var todaynewdata3 = third_chart_today;
+                    var todaynewdata4 = fourth_chart_today;
+                    var todaynewdata5 = fifth_chart_today;
+                    var todaynewdata6 = sixth_chart_today;
+                    var todaynewdata7 = seventh_chart_today;
+                }
 
                 FusionCharts.items['mychart1'].setJSONData(todaynewdata1);
                 FusionCharts.items['mychart2'].setJSONData(todaynewdata2);
@@ -165,13 +246,27 @@ class ChartDetail extends Component {
             m.onclick = function () {
                 document.getElementById("date").innerHTML = moment().format('MMMM YYYY');
 
-                var monthnewdata1 = first_chart_month;
-                var monthnewdata2 = second_chart_month;
-                var monthnewdata3 = third_chart_month;
-                var monthnewdata4 = fourth_chart_month;
-                var monthnewdata5 = fifth_chart_month;
-                var monthnewdata6 = sixth_chart_month;
-                var monthnewdata7 = seventh_chart_month;
+                // Use dynamic data if available
+                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const monthReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.month;
+
+                if (useDynamicData && monthReadings) {
+                    var monthnewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'month');
+                    var monthnewdata2 = getDashboardChart2Config(monthReadings, 'month');
+                    var monthnewdata3 = getDashboardChart3Config(monthReadings, 'month');
+                    var monthnewdata4 = getDashboardChart4Config(monthReadings, 'month');
+                    var monthnewdata5 = getDashboardChart5Config(monthReadings, 'month');
+                    var monthnewdata6 = getDashboardChart6Config(monthReadings, 'month');
+                    var monthnewdata7 = getDashboardChart7Config(monthReadings, 'month');
+                } else {
+                    var monthnewdata1 = first_chart_month;
+                    var monthnewdata2 = second_chart_month;
+                    var monthnewdata3 = third_chart_month;
+                    var monthnewdata4 = fourth_chart_month;
+                    var monthnewdata5 = fifth_chart_month;
+                    var monthnewdata6 = sixth_chart_month;
+                    var monthnewdata7 = seventh_chart_month;
+                }
 
                 FusionCharts.items['mychart1'].setJSONData(monthnewdata1);
                 FusionCharts.items['mychart2'].setJSONData(monthnewdata2);
@@ -192,13 +287,27 @@ class ChartDetail extends Component {
             y.onclick = function () {
                 document.getElementById("date").innerHTML = moment().format('YYYY');
 
-                var yearnewdata1 = first_chart_year;
-                var yearnewdata2 = second_chart_year;
-                var yearnewdata3 = third_chart_year;
-                var yearnewdata4 = fourth_chart_year;
-                var yearnewdata5 = fifth_chart_year;
-                var yearnewdata6 = sixth_chart_year;
-                var yearnewdata7 = seventh_chart_year;
+                // Use dynamic data if available
+                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const yearReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.year;
+
+                if (useDynamicData && yearReadings) {
+                    var yearnewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'year');
+                    var yearnewdata2 = getDashboardChart2Config(yearReadings, 'year');
+                    var yearnewdata3 = getDashboardChart3Config(yearReadings, 'year');
+                    var yearnewdata4 = getDashboardChart4Config(yearReadings, 'year');
+                    var yearnewdata5 = getDashboardChart5Config(yearReadings, 'year');
+                    var yearnewdata6 = getDashboardChart6Config(yearReadings, 'year');
+                    var yearnewdata7 = getDashboardChart7Config(yearReadings, 'year');
+                } else {
+                    var yearnewdata1 = first_chart_year;
+                    var yearnewdata2 = second_chart_year;
+                    var yearnewdata3 = third_chart_year;
+                    var yearnewdata4 = fourth_chart_year;
+                    var yearnewdata5 = fifth_chart_year;
+                    var yearnewdata6 = sixth_chart_year;
+                    var yearnewdata7 = seventh_chart_year;
+                }
 
 
                 FusionCharts.items['mychart1'].setJSONData(yearnewdata1);
@@ -2084,7 +2193,8 @@ class ChartDetail extends Component {
 // "state.activeUser" is set in reducers/index.js
 function mapStateToProps(state) {
     return {
-        user: state.activeUser
+        user: state.activeUser,
+        energy: state.energy  // Add energy state from Redux
     };
 }
 
