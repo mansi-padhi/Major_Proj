@@ -50,17 +50,19 @@ FusionCharts.options.creditLabel = false;
 class ChartDetail extends Component {
 
     componentDidMount() {
-
-        document.getElementById("month").click();
-        setTimeout(function () {
-            document.getElementById("month").click();
-        }, 300);
-
+        // Initial setup - removed automatic month button clicks
+        // to allow user to control the period selection
     }
 
-    componentDidUpdate() {
+    componentDidUpdate(prevProps) {
         // Safety check: ensure user prop exists
         if (!this.props.user || !this.props.user.id) {
+            return;
+        }
+
+        // Only update if user changed or energy data changed
+        if (prevProps.user && prevProps.user.id === this.props.user.id && 
+            prevProps.energy === this.props.energy) {
             return;
         }
 
@@ -75,9 +77,7 @@ class ChartDetail extends Component {
 
         if (this.props.user.id === 1) {
 
-            setTimeout(function () {
-                document.getElementById("month").click();
-            }, 300);
+            // Removed automatic month button click to allow user control
 
 
             ReactDOM.unmountComponentAtNode(document.getElementById('chart1'));
@@ -113,13 +113,15 @@ class ChartDetail extends Component {
             document.getElementById("parent5").style.height = "auto";
 
             // Use dynamic data if available, otherwise fall back to static data
-            const useDynamicData = this.props.energy && this.props.energy.dashboard;
+            const hasDashboardData = this.props.energy && this.props.energy.dashboard && this.props.energy.dashboard.month;
             const monthReadings = this.props.energy && this.props.energy.readings && this.props.energy.readings.month;
 
-            console.log('useDynamicData:', useDynamicData);
+            console.log('Dashboard data:', this.props.energy && this.props.energy.dashboard);
+            console.log('Readings data:', this.props.energy && this.props.energy.readings);
+            console.log('hasDashboardData:', hasDashboardData);
             console.log('monthReadings:', monthReadings);
 
-            if (useDynamicData && monthReadings) {
+            if (hasDashboardData && monthReadings) {
                 console.log('✅ Using DYNAMIC data for charts!');
                 // Render with dynamic data
                 const chart1Data = getDashboardChart1Config(this.props.energy.dashboard, 'month');
@@ -148,27 +150,15 @@ class ChartDetail extends Component {
                     <ReactFC type="msline" width="100%" height="300" id="mychart5" dataFormat="JSON" dataSource={chart5Data} />,
                     document.getElementById('chart5'));
             } else {
-                // Fallback to static data
-                console.log('⚠️ Using STATIC data - dynamic data not available');
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs1} />,
-                    document.getElementById('chart1'));
-
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs2} />,
-                    document.getElementById('chart2'));
-
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs3} />,
-                    document.getElementById('chart3'));
-
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs4} />,
-                    document.getElementById('chart4'));
-
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs5} />,
-                    document.getElementById('chart5'));
+                // Show loading message instead of static data
+                console.log('⚠️ Waiting for data to load...');
+                const loadingMessage = '<div style="display: flex; align-items: center; justify-content: center; height: 300px; color: #FDFDFD; font-family: Nunito Sans; font-size: 16px;">Loading chart data...</div>';
+                
+                document.getElementById('chart1').innerHTML = loadingMessage;
+                document.getElementById('chart2').innerHTML = loadingMessage;
+                document.getElementById('chart3').innerHTML = loadingMessage;
+                document.getElementById('chart4').innerHTML = loadingMessage;
+                document.getElementById('chart5').innerHTML = loadingMessage;
             }
 
             // logic for today button when the user is on dashboard
@@ -181,25 +171,21 @@ class ChartDetail extends Component {
                 document.getElementById("date").innerHTML = moment().format('MMMM, Do YYYY');
 
                 // Use dynamic data if available
-                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const hasDashboardData = self.props.energy && self.props.energy.dashboard && self.props.energy.dashboard.today;
                 const todayReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.today;
 
-                if (useDynamicData && todayReadings) {
+                if (hasDashboardData && todayReadings) {
                     var todaynewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'today');
                     var todaynewdata2 = getDashboardChart2Config(todayReadings, 'today');
                     var todaynewdata3 = getDashboardChart3Config(todayReadings, 'today');
                     var todaynewdata4 = getDashboardChart4Config(todayReadings, 'today');
                     var todaynewdata5 = getDashboardChart5Config(todayReadings, 'today');
-                    var todaynewdata6 = getDashboardChart6Config(todayReadings, 'today');
-                    var todaynewdata7 = getDashboardChart7Config(todayReadings, 'today');
                 } else {
                     var todaynewdata1 = first_chart_today;
                     var todaynewdata2 = second_chart_today;
                     var todaynewdata3 = third_chart_today;
                     var todaynewdata4 = fourth_chart_today;
                     var todaynewdata5 = fifth_chart_today;
-                    var todaynewdata6 = sixth_chart_today;
-                    var todaynewdata7 = seventh_chart_today;
                 }
 
                 FusionCharts.items['mychart1'].setJSONData(todaynewdata1);
@@ -207,8 +193,6 @@ class ChartDetail extends Component {
                 FusionCharts.items['mychart3'].setJSONData(todaynewdata3);
                 FusionCharts.items['mychart4'].setJSONData(todaynewdata4);
                 FusionCharts.items['mychart5'].setJSONData(todaynewdata5);
-                FusionCharts.items['mychart6'].setJSONData(todaynewdata6);
-                FusionCharts.items['mychart10'].setJSONData(todaynewdata7);
 
             };
 
@@ -220,25 +204,21 @@ class ChartDetail extends Component {
                 document.getElementById("date").innerHTML = moment().format('MMMM YYYY');
 
                 // Use dynamic data if available
-                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const hasDashboardData = self.props.energy && self.props.energy.dashboard && self.props.energy.dashboard.month;
                 const monthReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.month;
 
-                if (useDynamicData && monthReadings) {
+                if (hasDashboardData && monthReadings) {
                     var monthnewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'month');
                     var monthnewdata2 = getDashboardChart2Config(monthReadings, 'month');
                     var monthnewdata3 = getDashboardChart3Config(monthReadings, 'month');
                     var monthnewdata4 = getDashboardChart4Config(monthReadings, 'month');
                     var monthnewdata5 = getDashboardChart5Config(monthReadings, 'month');
-                    var monthnewdata6 = getDashboardChart6Config(monthReadings, 'month');
-                    var monthnewdata7 = getDashboardChart7Config(monthReadings, 'month');
                 } else {
                     var monthnewdata1 = first_chart_month;
                     var monthnewdata2 = second_chart_month;
                     var monthnewdata3 = third_chart_month;
                     var monthnewdata4 = fourth_chart_month;
                     var monthnewdata5 = fifth_chart_month;
-                    var monthnewdata6 = sixth_chart_month;
-                    var monthnewdata7 = seventh_chart_month;
                 }
 
                 FusionCharts.items['mychart1'].setJSONData(monthnewdata1);
@@ -246,13 +226,9 @@ class ChartDetail extends Component {
                 FusionCharts.items['mychart3'].setJSONData(monthnewdata3);
                 FusionCharts.items['mychart4'].setJSONData(monthnewdata4);
                 FusionCharts.items['mychart5'].setJSONData(monthnewdata5);
-                FusionCharts.items['mychart6'].setJSONData(monthnewdata6);
-                FusionCharts.items['mychart10'].setJSONData(monthnewdata7);
             };
 
-            setTimeout(function () {
-                document.getElementById("month").click();
-            });
+            // Removed automatic month button click
             //logic for year button when the user is on dashboard
 
 
@@ -261,25 +237,21 @@ class ChartDetail extends Component {
                 document.getElementById("date").innerHTML = moment().format('YYYY');
 
                 // Use dynamic data if available
-                const useDynamicData = self.props.energy && self.props.energy.dashboard;
+                const hasDashboardData = self.props.energy && self.props.energy.dashboard && self.props.energy.dashboard.year;
                 const yearReadings = self.props.energy && self.props.energy.readings && self.props.energy.readings.year;
 
-                if (useDynamicData && yearReadings) {
+                if (hasDashboardData && yearReadings) {
                     var yearnewdata1 = getDashboardChart1Config(self.props.energy.dashboard, 'year');
                     var yearnewdata2 = getDashboardChart2Config(yearReadings, 'year');
                     var yearnewdata3 = getDashboardChart3Config(yearReadings, 'year');
                     var yearnewdata4 = getDashboardChart4Config(yearReadings, 'year');
                     var yearnewdata5 = getDashboardChart5Config(yearReadings, 'year');
-                    var yearnewdata6 = getDashboardChart6Config(yearReadings, 'year');
-                    var yearnewdata7 = getDashboardChart7Config(yearReadings, 'year');
                 } else {
                     var yearnewdata1 = first_chart_year;
                     var yearnewdata2 = second_chart_year;
                     var yearnewdata3 = third_chart_year;
                     var yearnewdata4 = fourth_chart_year;
                     var yearnewdata5 = fifth_chart_year;
-                    var yearnewdata6 = sixth_chart_year;
-                    var yearnewdata7 = seventh_chart_year;
                 }
 
 
@@ -288,8 +260,6 @@ class ChartDetail extends Component {
                 FusionCharts.items['mychart3'].setJSONData(yearnewdata3);
                 FusionCharts.items['mychart4'].setJSONData(yearnewdata4);
                 FusionCharts.items['mychart5'].setJSONData(yearnewdata5);
-                FusionCharts.items['mychart6'].setJSONData(yearnewdata6);
-                FusionCharts.items['mychart10'].setJSONData(yearnewdata7);
             };
 
 
@@ -476,9 +446,7 @@ class ChartDetail extends Component {
 
                 }
             };
-            setTimeout(function () {
-                document.getElementById("month").click();
-            });
+            // Removed automatic month button click to allow user control
             // var y1 = document.getElementById("year");
 
             y.onclick = function () {
@@ -1265,9 +1233,7 @@ class ChartDetail extends Component {
                 }
             }
 
-            setTimeout(function () {
-                document.getElementById("month").click();
-            });
+            // Removed automatic month button click to allow user control
 
             y.onclick = function () {
                 window.selectedperiod = "year";
@@ -1700,9 +1666,7 @@ class ChartDetail extends Component {
                 }
             }
 
-            setTimeout(function () {
-                document.getElementById("month").click();
-            });
+            // Removed automatic month button click to allow user control
 
 
             y.onclick = function () {
@@ -2008,9 +1972,7 @@ class ChartDetail extends Component {
                 }
             };
         
-            setTimeout(function () {
-                document.getElementById("month").click();
-            });
+            // Removed automatic month button click to allow user control
         
         
             //logic for year
