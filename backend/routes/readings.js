@@ -5,12 +5,24 @@ const Reading = require('../models/Reading');
 // POST - Receive data from ESP32
 router.post('/', async (req, res) => {
   try {
-    const { deviceId, voltage, current, appliance, location } = req.body;
+    const { deviceId, voltage, current, sensor1, sensor2, appliance, location } = req.body;
+
+    // Handle dual-sensor format (sensor1 + sensor2) or single current value
+    let totalCurrent = current;
+    
+    if (sensor1 !== undefined && sensor2 !== undefined) {
+      // Dual sensor mode: combine both sensors
+      totalCurrent = sensor1 + sensor2;
+      console.log(`📊 Dual sensor data: Sensor1=${sensor1}A, Sensor2=${sensor2}A, Total=${totalCurrent}A`);
+    } else if (sensor1 !== undefined) {
+      // Single sensor mode (sensor1 only)
+      totalCurrent = sensor1;
+    }
 
     // Validate required fields
-    if (voltage === undefined || current === undefined) {
+    if (voltage === undefined || totalCurrent === undefined) {
       return res.status(400).json({ 
-        error: 'Missing required fields: voltage, current' 
+        error: 'Missing required fields: voltage and (current OR sensor1)' 
       });
     }
 
@@ -18,13 +30,17 @@ router.post('/', async (req, res) => {
     const reading = new Reading({
       deviceId: deviceId || 'ESP32_001',
       voltage,
-      current,
+      current: totalCurrent,
+      sensor1: sensor1,
+      sensor2: sensor2,
       appliance: appliance || 'All',
       location: location || 'Home',
       timestamp: new Date()
     });
 
     await reading.save();
+
+    console.log(`✅ Reading saved: V=${voltage}V, I=${totalCurrent}A, P=${reading.power}W`);
 
     res.status(201).json({ 
       success: true,

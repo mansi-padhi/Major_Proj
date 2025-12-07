@@ -19,10 +19,20 @@ const readingSchema = new mongoose.Schema({
     min: 0
   },
   
+  // Optional: Individual sensor readings (for dual-sensor setups)
+  sensor1: {
+    type: Number,
+    min: 0
+  },
+  sensor2: {
+    type: Number,
+    min: 0
+  },
+  
   // Calculated fields (auto-calculated by backend)
   power: {
     type: Number,
-    required: true,
+    required: false,  // Will be calculated in pre-save hook
     min: 0
   },
   energy: {
@@ -101,7 +111,7 @@ readingSchema.virtual('cost').get(function() {
 
 // Method to get formatted data for frontend
 readingSchema.methods.toFrontend = function() {
-  return {
+  const data = {
     deviceId: this.deviceId,
     voltage: parseFloat(this.voltage.toFixed(2)),
     current: parseFloat(this.current.toFixed(3)),
@@ -112,6 +122,16 @@ readingSchema.methods.toFrontend = function() {
     timestamp: this.timestamp,
     cost: this.cost
   };
+  
+  // Include individual sensor readings if available
+  if (this.sensor1 !== undefined) {
+    data.sensor1 = parseFloat(this.sensor1.toFixed(3));
+  }
+  if (this.sensor2 !== undefined) {
+    data.sensor2 = parseFloat(this.sensor2.toFixed(3));
+  }
+  
+  return data;
 };
 
 module.exports = mongoose.model('Reading', readingSchema);

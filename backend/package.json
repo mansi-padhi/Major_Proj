@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "seed": "node utils/seedData.js",
     "seed:realistic": "node utils/seedDataRealistic.js",
+    "seed:oneday": "node utils/seedOneDay.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": ["iot", "energy", "monitoring", "esp32"],
