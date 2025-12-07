@@ -3,18 +3,18 @@ const router = express.Router();
 const Reading = require('../models/Reading');
 
 // Cost calculation constants
-const ELECTRICITY_RATE = 0.12; // $ per kWh
+const ELECTRICITY_RATE = 3; // ₹ per kWh
 
 // GET - Calculate cost for a period
 router.get('/', async (req, res) => {
   try {
     const { period, deviceId, rate } = req.query;
     const costRate = rate ? parseFloat(rate) : ELECTRICITY_RATE;
-    
+
     let startDate;
     const now = new Date();
 
-    switch(period) {
+    switch (period) {
       case 'today':
         startDate = new Date(now.setHours(0, 0, 0, 0));
         break;
@@ -31,7 +31,7 @@ router.get('/', async (req, res) => {
     const query = {
       timestamp: { $gte: startDate }
     };
-    
+
     if (deviceId) query.deviceId = deviceId;
 
     const result = await Reading.aggregate([
@@ -61,7 +61,7 @@ router.get('/', async (req, res) => {
     const data = result[0];
     const totalCost = data.totalEnergy * costRate;
 
-    res.json({ 
+    res.json({
       success: true,
       totalEnergy: parseFloat(data.totalEnergy.toFixed(3)),
       totalCost: parseFloat(totalCost.toFixed(2)),
@@ -80,12 +80,12 @@ router.get('/', async (req, res) => {
 router.get('/prediction', async (req, res) => {
   try {
     const { period, deviceId } = req.query;
-    
+
     // Get current period data
     let startDate, endDate;
     const now = new Date();
 
-    switch(period) {
+    switch (period) {
       case 'month':
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -102,7 +102,7 @@ router.get('/prediction', async (req, res) => {
     const query = {
       timestamp: { $gte: startDate, $lte: now }
     };
-    
+
     if (deviceId) query.deviceId = deviceId;
 
     const currentData = await Reading.aggregate([
@@ -134,7 +134,7 @@ router.get('/prediction', async (req, res) => {
     const predictedEnergy = progressRatio > 0 ? currentEnergy / progressRatio : 0;
     const predictedCost = predictedEnergy * ELECTRICITY_RATE;
 
-    res.json({ 
+    res.json({
       success: true,
       currentEnergy: parseFloat(currentEnergy.toFixed(3)),
       currentCost: parseFloat((currentEnergy * ELECTRICITY_RATE).toFixed(2)),
@@ -153,11 +153,11 @@ router.get('/prediction', async (req, res) => {
 router.get('/comparison', async (req, res) => {
   try {
     const { period, deviceId } = req.query;
-    
+
     let currentStart, currentEnd, previousStart, previousEnd;
     const now = new Date();
 
-    switch(period) {
+    switch (period) {
       case 'month':
         currentStart = new Date(now.getFullYear(), now.getMonth(), 1);
         currentEnd = now;
@@ -182,11 +182,11 @@ router.get('/comparison', async (req, res) => {
     const currentQuery = {
       timestamp: { $gte: currentStart, $lte: currentEnd }
     };
-    
+
     const previousQuery = {
       timestamp: { $gte: previousStart, $lte: previousEnd }
     };
-    
+
     if (deviceId) {
       currentQuery.deviceId = deviceId;
       previousQuery.deviceId = deviceId;
@@ -207,13 +207,13 @@ router.get('/comparison', async (req, res) => {
     const previousEnergy = previousData[0]?.totalEnergy || 0;
     const currentCost = currentEnergy * ELECTRICITY_RATE;
     const previousCost = previousEnergy * ELECTRICITY_RATE;
-    
+
     const difference = currentCost - previousCost;
-    const percentageChange = previousCost > 0 
-      ? ((difference / previousCost) * 100) 
+    const percentageChange = previousCost > 0
+      ? ((difference / previousCost) * 100)
       : 0;
 
-    res.json({ 
+    res.json({
       success: true,
       current: {
         energy: parseFloat(currentEnergy.toFixed(3)),

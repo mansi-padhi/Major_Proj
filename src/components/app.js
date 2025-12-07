@@ -128,11 +128,11 @@ class App extends React.Component {
                                 <div className="col-md-5 text-right date-indicator" id="date">Date</div>
                             </div>
                             {/* <!-- time frame row end -->
-                    <!-- chart row start -->  */}
+                    <!-- dashboard cards start --> */}
                             <div className="row mt-3 db-chart">
                                 <div id="parent1" className="col-lg-6 col-xl-4">
                                     <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text1">COST</div>
+                                        <div className="chart-title" id="text1">COST PREDICTED</div>
                                         <div id="chart1" className="chart">Rendering chart 1 here</div>
                                     </div>
                                 </div>
@@ -160,8 +160,6 @@ class App extends React.Component {
                                         <div id="chart5" className="chart">Chart 5</div>
                                     </div>
                                 </div>
-
-
                             </div>
                             <ChartDetail />
 

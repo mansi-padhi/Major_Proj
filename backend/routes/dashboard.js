@@ -7,7 +7,7 @@ router.get('/summary', async (req, res) => {
   try {
     const { deviceId } = req.query;
     const now = new Date();
-    
+
     // Today's data
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));
     const todayQuery = { timestamp: { $gte: startOfToday } };
@@ -48,7 +48,7 @@ router.get('/summary', async (req, res) => {
       Reading.distinct('deviceId')
     ]);
 
-    const ELECTRICITY_RATE = 0.12;
+    const ELECTRICITY_RATE = 3; // ₹ per kWh
 
     res.json({
       success: true,
@@ -89,7 +89,7 @@ router.get('/realtime', async (req, res) => {
   try {
     const { deviceId } = req.query;
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
+
     const query = { timestamp: { $gte: fiveMinutesAgo } };
     if (deviceId) query.deviceId = deviceId;
 

@@ -18,7 +18,7 @@ const readingSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  
+
   // Calculated fields (auto-calculated by backend)
   power: {
     type: Number,
@@ -30,7 +30,19 @@ const readingSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
-  
+
+  // Load identification (for multi-load systems)
+  loadId: {
+    type: String,
+    enum: ['Load1', 'Load2', 'Load3', 'Load4'],
+    default: 'Load1',
+    index: true
+  },
+  loadName: {
+    type: String,
+    default: 'Load 1'
+  },
+
   // Optional fields for future phases
   appliance: {
     type: String,
@@ -41,7 +53,7 @@ const readingSchema = new mongoose.Schema({
     type: String,
     default: 'Home'
   },
-  
+
   // Timestamp
   timestamp: {
     type: Date,
@@ -58,12 +70,12 @@ readingSchema.index({ deviceId: 1, timestamp: -1 });
 readingSchema.index({ appliance: 1, timestamp: -1 });
 
 // Pre-save hook to calculate power and energy
-readingSchema.pre('save', async function() {
+readingSchema.pre('save', async function () {
   // Calculate power (P = V × I) if not provided
   if (!this.power || this.power === 0) {
     this.power = this.voltage * this.current;
   }
-  
+
   // Calculate incremental energy if this is a new reading
   if (this.isNew) {
     try {
@@ -71,12 +83,12 @@ readingSchema.pre('save', async function() {
       const lastReading = await mongoose.model('Reading')
         .findOne({ deviceId: this.deviceId })
         .sort({ timestamp: -1 });
-      
+
       if (lastReading) {
         // Calculate time difference in hours
         const timeDiffMs = this.timestamp - lastReading.timestamp;
         const timeDiffHours = timeDiffMs / (1000 * 60 * 60);
-        
+
         // Calculate energy: E (kWh) = P (W) × t (hours) / 1000
         // Use average power between this and last reading
         const avgPower = (this.power + lastReading.power) / 2;
@@ -94,19 +106,21 @@ readingSchema.pre('save', async function() {
 });
 
 // Virtual for cost calculation
-readingSchema.virtual('cost').get(function() {
-  const ELECTRICITY_RATE = 0.12; // $ per kWh
+readingSchema.virtual('cost').get(function () {
+  const ELECTRICITY_RATE = 3; // ₹ per kWh
   return (this.energy * ELECTRICITY_RATE).toFixed(2);
 });
 
 // Method to get formatted data for frontend
-readingSchema.methods.toFrontend = function() {
+readingSchema.methods.toFrontend = function () {
   return {
     deviceId: this.deviceId,
     voltage: parseFloat(this.voltage.toFixed(2)),
     current: parseFloat(this.current.toFixed(3)),
     power: parseFloat(this.power.toFixed(2)),
     energy: parseFloat(this.energy.toFixed(6)),
+    loadId: this.loadId,
+    loadName: this.loadName,
     appliance: this.appliance,
     location: this.location,
     timestamp: this.timestamp,

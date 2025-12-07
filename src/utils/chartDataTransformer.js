@@ -1,19 +1,19 @@
 // Transform API data to FusionCharts format
 import moment from 'moment';
 
-const ELECTRICITY_RATE = 0.12; // $ per kWh
+const ELECTRICITY_RATE = 3; // ₹ per kWh
 
 // Transform dashboard summary data for Chart 1 (Electricity vs Gas doughnut)
 export function transformDashboardChart1(dashboardData, period = 'month') {
   const data = period === 'today' ? dashboardData.today : dashboardData.month;
-  
+
   // For now, we only have electricity data (no gas)
   // Split 60% electricity, 40% "other" as placeholder
   const totalCost = parseFloat(data.cost) || 0;
   const electricityCost = totalCost * 0.6;
   const gasCost = totalCost * 0.4;
-  
-  const totalLabel = period === 'today' ? 
+
+  const totalLabel = period === 'today' ?
     `Total <br> $${totalCost.toFixed(2)}` :
     `Total <br> $${totalCost.toFixed(0)}`;
 
@@ -86,7 +86,7 @@ export function transformTimeSeriesChart(readings, period = 'month', chartType =
   if (period === 'today') {
     // Data is grouped by hour with _id as hour
     const hourlyData = Array(24).fill(0);
-    
+
     data.forEach(item => {
       const hour = item._id;
       if (hour >= 0 && hour < 24) {
@@ -112,7 +112,7 @@ export function transformTimeSeriesChart(readings, period = 'month', chartType =
     // Data is grouped by day with _id as day
     const daysInMonth = moment().daysInMonth();
     const dailyData = Array(daysInMonth).fill(0);
-    
+
     data.forEach(item => {
       const day = item._id - 1; // _id is 1-based, array is 0-based
       if (day >= 0 && day < daysInMonth) {
@@ -137,7 +137,7 @@ export function transformTimeSeriesChart(readings, period = 'month', chartType =
   } else if (period === 'year') {
     // Data is grouped by month with _id as month (1-12)
     const monthlyData = Array(12).fill(0);
-    
+
     data.forEach(item => {
       const month = item._id - 1; // _id is 1-based, array is 0-based
       if (month >= 0 && month < 12) {

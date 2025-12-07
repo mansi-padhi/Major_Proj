@@ -17,19 +17,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
-.then(() => console.log('✅ MongoDB Connected Successfully'))
-.catch((err) => console.error('❌ MongoDB Connection Error:', err));
+  .then(() => console.log('✅ MongoDB Connected Successfully'))
+  .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
 // Routes
 app.use('/api/readings', require('./routes/readings'));
 app.use('/api/appliances', require('./routes/appliances'));
 app.use('/api/cost', require('./routes/cost'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/loads', require('./routes/loads'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'Energy Monitoring Backend is running',
     timestamp: new Date().toISOString()
   });
@@ -37,7 +38,7 @@ app.get('/api/health', (req, res) => {
 
 // Root endpoint
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: '⚡ IoT Energy Monitoring API',
     version: '1.0.0',
     endpoints: {
@@ -53,9 +54,9 @@ app.get('/', (req, res) => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Something went wrong!',
-    message: err.message 
+    message: err.message
   });
 });
 
