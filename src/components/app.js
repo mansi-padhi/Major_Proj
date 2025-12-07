@@ -48,7 +48,7 @@ class App extends React.Component {
 
         document.getElementById('Dashboard').click();
         document.getElementById('month').click();
-        
+
         // Auto-refresh data every 30 seconds
         this.refreshInterval = setInterval(() => {
             this.props.fetchDashboardSummary();
@@ -160,13 +160,7 @@ class App extends React.Component {
                                         <div id="chart5" className="chart">Chart 5</div>
                                     </div>
                                 </div>
-                                <div id="parent6" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text6">CARBON FOOTPRINT</div>
-                                        <div id="chart6" className="chart">CHART 6 </div>
-                                        <div id="chart7" className="chart">chart 7</div>
-                                    </div>
-                                </div>
+
 
                             </div>
                             <ChartDetail />

@@ -16,10 +16,6 @@ export default function () {
         {
             id: 4,
             name: "Usage-by-rooms"
-        },
-        {
-            id: 5,
-            name: "Emissions"
         }
     ]
 }

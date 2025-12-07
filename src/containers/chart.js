@@ -29,19 +29,16 @@ import {
     getDashboardChart7Config
 } from '../chart-configs/dashboard_charts_dynamic';
 
-import emissionchart, { carbonfootprint_month_data, carbonfootprint_today_data, carbonfootprint_year_data, green_energy_stats_today_data, green_energy_stats_month_data, green_energy_stats_year_data } from '../emissions/emission_data';
 import usagechart, { usage_today, usage_yesterday, usage_thismonth, usage_lastmonth, usage_thisyear, usage_lastyear } from '../usage/usage_data1';
 import costchart, { cost_last_month, cost_this_month, cost_last_day, cost_this_day, cost_last_year, cost_this_year } from '../cost/cost_data1';
 import UsageComponent from '../components/usage_component';
 import { todayArr, todayElecSplit, monthArr, mElecSplit, yearArr, yElecSplit } from '../cost/cost_data1';
-import EmissionComponent from '../components/emission_component';
 import CostComponent from '../components/cost_component';
 import AppliancesComponent from '../components/appliances_component';
 import appliancechart, { buildDataYesterday, buildDataLastMonth, buildDataThisMonth, buildDataLastYear, buildDataThisYear } from '../appliances/appliances_data';
 import { buildDataToday } from '../appliances/appliances_data';
 
 import * as utils from '../utils/utils';
-import { pdArr, cdArr, pmArr, cmArr, pyArr, cyArr, pdgeArr, cdgeArr, cmgeArr, pygeArr, cygeArr, pmgeArr } from '../emissions/emission_data';
 
 charts(FusionCharts)
 widgets(FusionCharts)
@@ -92,7 +89,6 @@ class ChartDetail extends Component {
             document.getElementById("Cost").setAttribute("class", "left-option");
             document.getElementById("Appliances").setAttribute("class", "left-option");
             document.getElementById("Usage-by-rooms").setAttribute("class", "left-option");
-            document.getElementById("Emissions").setAttribute("class", "left-option");
 
             document.getElementById("bd-docs-nav").setAttribute("class", "bd-links collapse");
 
@@ -116,12 +112,6 @@ class ChartDetail extends Component {
             document.getElementById("parent5").style.width = "auto";
             document.getElementById("parent5").style.height = "auto";
 
-            ReactDOM.unmountComponentAtNode(document.getElementById('chart6'));
-            document.getElementById("parent6").style.display = "block";
-            document.getElementById("parent6").style.width = "auto";
-            document.getElementById("parent6").style.height = "auto";
-
-
             // Use dynamic data if available, otherwise fall back to static data
             const useDynamicData = this.props.energy && this.props.energy.dashboard;
             const monthReadings = this.props.energy && this.props.energy.readings && this.props.energy.readings.month;
@@ -137,8 +127,6 @@ class ChartDetail extends Component {
                 const chart3Data = getDashboardChart3Config(monthReadings, 'month');
                 const chart4Data = getDashboardChart4Config(monthReadings, 'month');
                 const chart5Data = getDashboardChart5Config(monthReadings, 'month');
-                const chart6Data = getDashboardChart6Config(monthReadings, 'month');
-                const chart7Data = getDashboardChart7Config(monthReadings, 'month');
 
                 ReactDOM.render(
                     <ReactFC type="doughnut2d" width="100%" height="300" id="mychart1" dataFormat="JSON" dataSource={chart1Data} />,
@@ -159,14 +147,6 @@ class ChartDetail extends Component {
                 ReactDOM.render(
                     <ReactFC type="msline" width="100%" height="300" id="mychart5" dataFormat="JSON" dataSource={chart5Data} />,
                     document.getElementById('chart5'));
-
-                ReactDOM.render(
-                    <ReactFC type="msline" width="100%" height="300" id="mychart6" dataFormat="JSON" dataSource={chart6Data} />,
-                    document.getElementById('chart6'));
-
-                ReactDOM.render(
-                    <ReactFC type="msline" width="100%" height="300" id="mychart10" dataFormat="JSON" dataSource={chart7Data} />,
-                    document.getElementById('chart7'));
             } else {
                 // Fallback to static data
                 console.log('⚠️ Using STATIC data - dynamic data not available');
@@ -189,13 +169,6 @@ class ChartDetail extends Component {
                 ReactDOM.render(
                     <ReactFC {...chartConfigs5} />,
                     document.getElementById('chart5'));
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs6} />,
-                    document.getElementById('chart6'));
-
-                ReactDOM.render(
-                    <ReactFC {...chartConfigs7} />,
-                    document.getElementById('chart7'));
             }
 
             // logic for today button when the user is on dashboard
@@ -332,7 +305,6 @@ class ChartDetail extends Component {
             document.getElementById("Cost").setAttribute("class", "left-option active");
             document.getElementById("Appliances").setAttribute("class", "left-option");
             document.getElementById("Usage-by-rooms").setAttribute("class", "left-option");
-            document.getElementById("Emissions").setAttribute("class", "left-option");
 
             document.getElementById("bd-docs-nav").setAttribute("class", "bd-links collapse");
 
@@ -587,7 +559,6 @@ class ChartDetail extends Component {
             document.getElementById("Cost").setAttribute("class", "left-option");
             document.getElementById("Appliances").setAttribute("class", "left-option active");
             document.getElementById("Usage-by-rooms").setAttribute("class", "left-option");
-            document.getElementById("Emissions").setAttribute("class", "left-option");
 
             document.getElementById("bd-docs-nav").setAttribute("class", "bd-links collapse");
 
@@ -1653,7 +1624,6 @@ class ChartDetail extends Component {
             document.getElementById("Cost").setAttribute("class", "left-option");
             document.getElementById("Appliances").setAttribute("class", "left-option");
             document.getElementById("Usage-by-rooms").setAttribute("class", "left-option active");
-            document.getElementById("Emissions").setAttribute("class", "left-option");
 
             document.getElementById("bd-docs-nav").setAttribute("class", "bd-links collapse");
 
@@ -1758,61 +1728,61 @@ class ChartDetail extends Component {
 
         }
 
-        // Emission Option Logic.
+        // Emission Option Logic - REMOVED
 
-        else if (this.props.user.id === 5) {
+        /* else if (this.props.user.id === 5) {
             utils.disposeChart(FusionCharts, "mychart7")
             ReactDOM.unmountComponentAtNode(document.getElementById('chart1'));
             // document.getElementById("date").style.display = "none";
             document.getElementById("parent1").setAttribute("class", "chart1-em col-lg-12 col-xl-12");
             document.getElementById("text1").innerHTML = "EMISSIONS";
-
+        
             var cper;
             document.getElementById("Dashboard").setAttribute("class", "left-option");
             document.getElementById("Cost").setAttribute("class", "left-option");
             document.getElementById("Appliances").setAttribute("class", "left-option");
             document.getElementById("Usage-by-rooms").setAttribute("class", "left-option");
             document.getElementById("Emissions").setAttribute("class", "left-option active");
-
+        
             document.getElementById("bd-docs-nav").setAttribute("class", "bd-links collapse");
-
-
+        
+        
             ReactDOM.unmountComponentAtNode(document.getElementById('chart2'));
             document.getElementById("parent2").style.display = "none";
             document.getElementById("parent2").style.width = "0px";
             document.getElementById("parent2").style.height = "0px";
-
+        
             ReactDOM.unmountComponentAtNode(document.getElementById('chart3'));
             document.getElementById("parent3").style.display = "none";
             document.getElementById("parent3").style.width = "0px";
             document.getElementById("parent3").style.height = "0px";
-
+        
             ReactDOM.unmountComponentAtNode(document.getElementById('chart4'));
             document.getElementById("parent4").style.display = "none";
             document.getElementById("parent4").style.width = "0px";
             document.getElementById("parent4").style.height = "0px";
-
+        
             ReactDOM.unmountComponentAtNode(document.getElementById('chart5'));
             document.getElementById("parent5").style.display = "none";
             document.getElementById("parent5").style.width = "0px";
             document.getElementById("parent5").style.height = "0px";
-
+        
             ReactDOM.unmountComponentAtNode(document.getElementById('chart6'));
             document.getElementById("parent6").style.display = "none";
             document.getElementById("parent6").style.width = "0px";
             document.getElementById("parent6").style.height = "0px";
-
-
+        
+        
             //utils.disposeChart('mychart7');
             ReactDOM.render(
-
+        
                 <EmissionComponent emissionchart={emissionchart} />,
                 document.getElementById('chart1'));
-
+        
             // logic for today button       
             // var t1 = document.getElementById("today");
-
-
+        
+        
             t.onclick = function () {
                 window.selectedperiod = "today";
                 document.getElementById("date").innerHTML = moment().format('MMMM, Do YYYY');
@@ -1821,7 +1791,7 @@ class ChartDetail extends Component {
                     for (var i = 0; i < pdgeArr.length; i++) {
                         cpCalc = cpCalc + pdgeArr[i];
                     }
-
+        
                     // so far today kpi
                     // eslint-disable-next-line
                     var cHour = parseInt(moment().format('H'));
@@ -1830,17 +1800,17 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cHour; i++) {
                         sftCalc = sftCalc + cdgeArr[i];
                     }
-
+        
                     // predicted today kpi
-
+        
                     var ptcpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < cdgeArr.length; i++) {
                         ptcpCalc = ptcpCalc + cdgeArr[i];
                     }
-
+        
                     // emisson change kpi
-
+        
                     if (ptcpCalc > cpCalc) {
                         var cper = Math.round(([(ptcpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▲</span>";
@@ -1848,33 +1818,33 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(ptcpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▼</span>";
                     }
-
+        
                     var emtoday2 = green_energy_stats_today_data;
                     FusionCharts.items['mychart7'].setJSONData(emtoday2);
-
-
+        
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'day').format('MMMM D');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "   kWh";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far Today";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sftCalc * 100) / 100 + "   kWh";
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted Today";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(ptcpCalc * 100) / 100 + "   kWh";
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
                 }
                 else {
                     var emtoday = carbonfootprint_today_data;
                     FusionCharts.items['mychart7'].setJSONData(emtoday);
-
-
+        
+        
                     cpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < pdArr.length; i++) {
                         cpCalc = cpCalc + pdArr[i];
                     }
-
+        
                     // so far today kpi
                     // eslint-disable-next-line
                     var cHour = parseInt(moment().format('H'));
@@ -1883,16 +1853,16 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cHour; i++) {
                         sftCalc = sftCalc + pdArr[i];
                     }
-
+        
                     ptcpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < cdArr.length; i++) {
                         ptcpCalc = ptcpCalc + cdArr[i];
                     }
-
-
+        
+        
                     // emisson change kpi
-
+        
                     if (ptcpCalc > cpCalc) {
                         cper = Math.round(([(ptcpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▲</span>";
@@ -1900,40 +1870,40 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(ptcpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▼</span>";
                     }
-
-
+        
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'day').format('MMMM D');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far Today";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sftCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted Today";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(ptcpCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
-
-
+        
+        
                 }
             };
-
+        
             // logic for month
-
+        
             // var m1 = document.getElementById("month");
-
+        
             m.onclick = function () {
-
+        
                 window.selectedperiod = "month";
                 document.getElementById("date").innerHTML = moment().format('MMMM YYYY');
-
+        
                 if (window.b2selected) {
-
+        
                     var cpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < moment().subtract(1, 'month').daysInMonth(); i++) {
                         cpCalc = cpCalc + pmgeArr[i];
                     }
-
+        
                     // so far this month kpi
                     // eslint-disable-next-line
                     var cDate = parseInt(moment().format('D'));
@@ -1942,19 +1912,19 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cDate; i++) {
                         sfmCalc = sfmCalc + cmgeArr[i];
                     }
-
-
+        
+        
                     // predicted this month kpi
-
+        
                     var pmcpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < moment().daysInMonth(); i++) {
                         pmcpCalc = pmcpCalc + cmgeArr[i];
                     }
-
-
+        
+        
                     // emisson change kpi
-
+        
                     if (pmcpCalc > cpCalc) {
                         var cper = Math.round(([(pmcpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▲</span>";
@@ -1962,33 +1932,33 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(pmcpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▼</span>";
                     }
-
+        
                     var emmonth2 = green_energy_stats_month_data;
                     FusionCharts.items['mychart7'].setJSONData(emmonth2);
-
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'month').format('MMMM');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "   kWh";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far This Month";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sfmCalc * 100) / 100 + "   kWh"
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted This Month";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(pmcpCalc * 100) / 100 + "  kWh"
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
-
+        
                 }
                 else {
                     var emmonth = carbonfootprint_month_data;
-
+        
                     // last month's kpi
-
+        
                     cpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < moment().subtract(1, 'month').daysInMonth(); i++) {
                         cpCalc = cpCalc + pmArr[i];
                     }
-
+        
                     // so far this month kpi
                     // eslint-disable-next-line
                     var cDate = parseInt(moment().format('D'));
@@ -1997,19 +1967,19 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cDate; i++) {
                         sfmCalc = sfmCalc + cmArr[i];
                     }
-
-
+        
+        
                     // predicted this month kpi
-
+        
                     pmcpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < moment().daysInMonth(); i++) {
                         pmcpCalc = pmcpCalc + cmArr[i];
                     }
-
-
+        
+        
                     // emisson change kpi
-
+        
                     if (pmcpCalc > cpCalc) {
                         cper = Math.round(([(pmcpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▲</span>"
@@ -2017,47 +1987,47 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(pmcpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▼</span>"
                     }
-
-
-
+        
+        
+        
                     FusionCharts.items['mychart7'].setJSONData(emmonth);
-
-
-
+        
+        
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'month').format('MMMM');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far This Month";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sfmCalc * 100) / 100 + "  kg"
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted This Month";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(pmcpCalc * 100) / 100 + "  kg"
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
-
+        
                 }
             };
-
+        
             setTimeout(function () {
                 document.getElementById("month").click();
             });
-
-
+        
+        
             //logic for year
-
+        
             // var y1 = document.getElementById("year");
-
+        
             y.onclick = function () {
                 window.selectedperiod = "year";
                 document.getElementById("date").innerHTML = moment().format('YYYY');
                 if (window.b2selected) {
-
+        
                     var cpCalc = 0;
                     for (var i = 0; i < pygeArr.length; i++) {
                         cpCalc = cpCalc + pygeArr[i];
                     }
-
-
+        
+        
                     // so far this year kpi
                     // eslint-disable-next-line
                     var cMonth = parseInt(moment().format('M'));
@@ -2066,19 +2036,19 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cMonth; i++) {
                         sfyCalc = sfyCalc + cygeArr[i];
                     }
-
-
+        
+        
                     // predicted this year kpi
-
+        
                     var pycpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < 12; i++) {
                         pycpCalc = pycpCalc + cygeArr[i];
                     }
-
-
+        
+        
                     // emisson change kpi
-
+        
                     if (pycpCalc > cpCalc) {
                         cper = Math.round(([(pycpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▲</span>";
@@ -2086,33 +2056,33 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(pycpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▼</span>";
                     }
-
+        
                     var emyear2 = green_energy_stats_year_data;
                     FusionCharts.items['mychart7'].setJSONData(emyear2);
-
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'year').format('YYYY');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "  kWh";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far This Year";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sfyCalc * 100) / 100 + "  kWh";
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted This Year";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(pycpCalc * 100) / 100 + "  kWh";
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
                 }
                 else {
                     var emyear = carbonfootprint_year_data;
-
+        
                     // last year's kpi
-
+        
                     cpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < pyArr.length; i++) {
                         cpCalc = cpCalc + pyArr[i];
                     }
-
-
+        
+        
                     // so far this year kpi
                     // eslint-disable-next-line
                     cMonth = parseInt(moment().format('M'));
@@ -2121,19 +2091,19 @@ class ChartDetail extends Component {
                     for (var i = 0; i < cMonth; i++) {
                         sfyCalc = sfyCalc + cyArr[i];
                     }
-
-
+        
+        
                     // predicted this year kpi
-
+        
                     pycpCalc = 0;
                     // eslint-disable-next-line
                     for (var i = 0; i < 12; i++) {
                         pycpCalc = pycpCalc + cyArr[i];
                     }
-
-
+        
+        
                     // emisson change kpi
-
+        
                     if (pycpCalc > cpCalc) {
                         cper = Math.round(([(pycpCalc / cpCalc) * 100] - 100) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #EF5052;'>▲</span>"
@@ -2141,44 +2111,26 @@ class ChartDetail extends Component {
                         cper = Math.round((100 - [(pycpCalc / cpCalc) * 100]) * 100) / 100;
                         document.getElementById("em-tablecell-value4").innerHTML = cper + "% <span style='color: #B4F9A1;'>▼</span>"
                     }
-
-
+        
+        
                     FusionCharts.items['mychart7'].setJSONData(emyear);
-
+        
                     document.getElementById("em-tablecell-title1").innerHTML = moment().subtract(1, 'year').format('YYYY');
                     document.getElementById("em-tablecell-value1").innerHTML = Math.round(cpCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title2").innerHTML = "So Far This Year";
                     document.getElementById("em-tablecell-value2").innerHTML = Math.round(sfyCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title3").innerHTML = "Predicted This Year";
                     document.getElementById("em-tablecell-value3").innerHTML = Math.round(pycpCalc * 100) / 100 + "  kg";
-
+        
                     document.getElementById("em-tablecell-title4").innerHTML = "Change in Emissions";
                 }
             };
-
-
-
-        }
-
-        else {
-            var defaultElement = (
-                <div>
-
-                    <h2>{this.props.user.name}</h2>
-
-                </div>
-            );
-            ReactDOM.unmountComponentAtNode(document.getElementById('chart1'));
-            ReactDOM.unmountComponentAtNode(document.getElementById('chart2'));
-
-            // utils.disposeChart('mychart7');
-
-            ReactDOM.render(
-                defaultElement,
-                document.getElementById('chart1'));
-        }
+        
+        
+        
+        } */
     }
 
 

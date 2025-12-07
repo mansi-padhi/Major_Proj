@@ -53,7 +53,7 @@ export const fetchReadings = (period = 'today') => {
         dispatch({ type: SET_LOADING, payload: true });
         try {
             let data;
-            switch(period) {
+            switch (period) {
                 case 'today':
                     data = await EnergyAPI.getTodayReadings();
                     break;

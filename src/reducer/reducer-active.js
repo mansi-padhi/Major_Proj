@@ -1,7 +1,12 @@
-export default function (state = null, action) {
+const initialState = {
+  id: 1,
+  name: "Dashboard"
+};
+
+export default function (state = initialState, action) {
   // console.trace(state);
   switch (action.type) {
-    case "Option clicked":
+    case "SELECT_OPTION":
       return action.payload;
     // break;
     default:
