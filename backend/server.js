@@ -60,8 +60,11 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0'; // Listen on all network interfaces
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 API available at http://localhost:${PORT}`);
+  console.log(`📊 Local access: http://localhost:${PORT}`);
+  console.log(`🌐 Network access: http://10.97.183.155:${PORT}`);
+  console.log(`📱 ESP32 can now connect!`);
 });

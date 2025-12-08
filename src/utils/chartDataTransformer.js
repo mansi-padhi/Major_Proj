@@ -1,17 +1,15 @@
 // Transform API data to FusionCharts format
 import moment from 'moment';
 
-const ELECTRICITY_RATE = 0.12; // $ per kWh
+const ELECTRICITY_RATE = 10.0; // $ per kWh (increased for testing)
 
-// Transform dashboard summary data for Chart 1 (Electricity vs Gas doughnut)
+// Transform dashboard summary data for Chart 1 (Electricity Cost doughnut)
 export function transformDashboardChart1(dashboardData, period = 'month') {
   const data = period === 'today' ? dashboardData.today : dashboardData.month;
   
-  // For now, we only have electricity data (no gas)
-  // Split 60% electricity, 40% "other" as placeholder
+  // Only electricity data (no gas sensor)
   const totalCost = parseFloat(data.cost) || 0;
-  const electricityCost = totalCost * 0.6;
-  const gasCost = totalCost * 0.4;
+  const totalEnergy = parseFloat(data.energy) || 0;
   
   const totalLabel = period === 'today' ? 
     `Total <br> $${totalCost.toFixed(2)}` :
@@ -24,7 +22,7 @@ export function transformDashboardChart1(dashboardData, period = 'month') {
       use3DLighting: "0",
       showLabels: "0",
       showValues: "0",
-      paletteColors: "#58E2C2, #F7E53B",
+      paletteColors: "#58E2C2",
       bgColor: "#1D1B41",
       bgAlpha: "0",
       canvasBgAlpha: "0",
@@ -63,11 +61,8 @@ export function transformDashboardChart1(dashboardData, period = 'month') {
     data: [
       {
         label: "Electricity",
-        value: electricityCost.toFixed(2)
-      },
-      {
-        label: "Gas",
-        value: gasCost.toFixed(2)
+        value: totalCost.toFixed(2),
+        tooltext: `Electricity<br>Cost: $${totalCost.toFixed(2)}<br>Energy: ${totalEnergy.toFixed(2)} kWh`
       }
     ]
   };

@@ -3,7 +3,7 @@ const router = express.Router();
 const Reading = require('../models/Reading');
 
 // Cost calculation constants
-const ELECTRICITY_RATE = 0.12; // $ per kWh
+const ELECTRICITY_RATE = 10.0; // $ per kWh (increased for testing)
 
 // GET - Calculate cost for a period
 router.get('/', async (req, res) => {

@@ -2,10 +2,10 @@
 const http = require('http');
 
 console.log('🔍 Testing Network Access to Backend\n');
-console.log('Testing: http://10.97.183.155:5000/api/health\n');
+console.log('Testing: http://10.164.131.155:5000/api/health\n');
 
 const options = {
-  hostname: '10.97.183.155',
+  hostname: '10.164.131.155',
   port: 5000,
   path: '/api/health',
   method: 'GET',

@@ -48,7 +48,7 @@ router.get('/summary', async (req, res) => {
       Reading.distinct('deviceId')
     ]);
 
-    const ELECTRICITY_RATE = 0.12;
+    const ELECTRICITY_RATE = 10.0; // $ per kWh (increased for testing)
 
     res.json({
       success: true,

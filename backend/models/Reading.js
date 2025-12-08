@@ -105,7 +105,7 @@ readingSchema.pre('save', async function() {
 
 // Virtual for cost calculation
 readingSchema.virtual('cost').get(function() {
-  const ELECTRICITY_RATE = 0.12; // $ per kWh
+  const ELECTRICITY_RATE = 10.0; // $ per kWh (increased for testing with small loads)
   return (this.energy * ELECTRICITY_RATE).toFixed(2);
 });
 

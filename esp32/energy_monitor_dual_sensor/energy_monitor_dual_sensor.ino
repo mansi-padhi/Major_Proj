@@ -33,7 +33,7 @@ float offset2 = 0.0;
 // ------------ WiFi + SERVER SETTINGS ------------
 const char* ssid     = "Realme";
 const char* password = "mansi1603";
-const char* SERVER_URL = "http://10.97.183.155:5000/api/readings";
+const char* SERVER_URL = "http://10.164.131.155:5000/api/readings";  // Updated IP
 const char* DEVICE_ID  = "esp32-1";
 const float MAINS_VOLTAGE = 230.0;   // adjust if needed
 
