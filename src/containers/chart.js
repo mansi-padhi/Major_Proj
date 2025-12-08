@@ -143,7 +143,7 @@ class ChartDetail extends Component {
                     document.getElementById('chart3'));
 
                 ReactDOM.render(
-                    <ReactFC type="msline" width="100%" height="300" id="mychart4" dataFormat="JSON" dataSource={chart4Data} />,
+                    <ReactFC type="stackedbar2d" width="100%" height="300" id="mychart4" dataFormat="JSON" dataSource={chart4Data} />,
                     document.getElementById('chart4'));
 
                 ReactDOM.render(
@@ -423,7 +423,7 @@ class ChartDetail extends Component {
 
                     //  document.getElementById("cost-elements").style.paddingLeft = "0px";
                     document.getElementById("co-tablecell-title1").innerHTML = moment().subtract(1, 'month').format('MMMM');
-                    document.getElementById("co-tablecell-value1").innerHTML = "$" + monthArr[1];
+                    document.getElementById("co-tablecell-value1").innerHTML = "₹" + monthArr[1];
 
                     var sfmVal = 0;
                     // eslint-disable-next-line
@@ -433,16 +433,16 @@ class ChartDetail extends Component {
                     sfmVal = Math.round(sfmVal * 100) / 100;
 
                     document.getElementById("co-tablecell-title2").innerHTML = "So Far This Month";
-                    document.getElementById("co-tablecell-value2").innerHTML = "$" + sfmVal;
+                    document.getElementById("co-tablecell-value2").innerHTML = "₹" + sfmVal;
 
                     document.getElementById("co-tablecell-title3").innerHTML = "Predicted This Month";
-                    document.getElementById("co-tablecell-value3").innerHTML = "$" + monthArr[2];
+                    document.getElementById("co-tablecell-value3").innerHTML = "₹" + monthArr[2];
 
                     document.getElementById("co-tablecell-title4").style.display = "block";
                     document.getElementById("co-tablecell-value4").style.display = "block";
 
                     document.getElementById("co-tablecell-title4").innerHTML = "Estimated savings";
-                    document.getElementById("co-tablecell-value4").innerHTML = "$" + Math.round((monthArr[2] - monthArr[1]) * 100) / 100;
+                    document.getElementById("co-tablecell-value4").innerHTML = "₹" + Math.round((monthArr[2] - monthArr[1]) * 100) / 100;
 
                 }
             };
@@ -469,13 +469,13 @@ class ChartDetail extends Component {
                     //  document.getElementById("cost-elements").style.paddingLeft = "200px";
 
                     document.getElementById("co-tablecell-title1").innerHTML = moment().subtract(2, 'year').format('YYYY');
-                    document.getElementById("co-tablecell-value1").innerHTML = "$" + yearArr[0];
+                    document.getElementById("co-tablecell-value1").innerHTML = "₹" + yearArr[0];
 
                     document.getElementById("co-tablecell-title2").innerHTML = moment().subtract(1, 'year').format('YYYY');
-                    document.getElementById("co-tablecell-value2").innerHTML = "$" + yearArr[1];
+                    document.getElementById("co-tablecell-value2").innerHTML = "₹" + yearArr[1];
 
                     document.getElementById("co-tablecell-title3").innerHTML = "Savings";
-                    document.getElementById("co-tablecell-value3").innerHTML = "$" + Math.round((yearArr[0] - yearArr[1]) * 100) / 100;
+                    document.getElementById("co-tablecell-value3").innerHTML = "₹" + Math.round((yearArr[0] - yearArr[1]) * 100) / 100;
 
                     document.getElementById("co-tablecell-title4").style.display = "none";
                     document.getElementById("co-tablecell-value4").style.display = "none";
@@ -487,7 +487,7 @@ class ChartDetail extends Component {
                     //   document.getElementById("cost-elements").style.paddingLeft = "0px";
 
                     document.getElementById("co-tablecell-title1").innerHTML = moment().subtract(1, 'year').format('YYYY');
-                    document.getElementById("co-tablecell-value1").innerHTML = "$" + yearArr[1];
+                    document.getElementById("co-tablecell-value1").innerHTML = "₹" + yearArr[1];
 
                     var styVal = 0;
                     // eslint-disable-next-line
@@ -497,17 +497,17 @@ class ChartDetail extends Component {
                     styVal = Math.round(styVal * 100) / 100;
 
                     document.getElementById("co-tablecell-title2").innerHTML = "So Far This Year";
-                    document.getElementById("co-tablecell-value2").innerHTML = "$" + styVal;
+                    document.getElementById("co-tablecell-value2").innerHTML = "₹" + styVal;
 
 
                     document.getElementById("co-tablecell-title3").innerHTML = "Predicted This Year";
-                    document.getElementById("co-tablecell-value3").innerHTML = "$" + yearArr[2];
+                    document.getElementById("co-tablecell-value3").innerHTML = "₹" + yearArr[2];
 
                     document.getElementById("co-tablecell-title4").style.display = "block";
                     document.getElementById("co-tablecell-value4").style.display = "block";
 
                     document.getElementById("co-tablecell-title4").innerHTML = "Estimated Savings";
-                    document.getElementById("co-tablecell-value4").innerHTML = "$" + Math.round((yearArr[1] - yearArr[2]) * 100) / 100;
+                    document.getElementById("co-tablecell-value4").innerHTML = "₹" + Math.round((yearArr[1] - yearArr[2]) * 100) / 100;
                 }
 
             };

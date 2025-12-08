@@ -12,8 +12,8 @@ export function transformDashboardChart1(dashboardData, period = 'month') {
   const totalEnergy = parseFloat(data.energy) || 0;
   
   const totalLabel = period === 'today' ? 
-    `Total <br> $${totalCost.toFixed(2)}` :
-    `Total <br> $${totalCost.toFixed(0)}`;
+    `Total <br> ₹${totalCost.toFixed(2)}` :
+    `Total <br> ₹${totalCost.toFixed(0)}`;
 
   return {
     chart: {
@@ -28,7 +28,7 @@ export function transformDashboardChart1(dashboardData, period = 'month') {
       canvasBgAlpha: "0",
       doughnutRadius: "75",
       pieRadius: "95",
-      numberPrefix: "$",
+      numberPrefix: "₹",
       plotBorderAlpha: "0",
       toolTipBgcolor: "#484E69",
       toolTipPadding: "7",
@@ -62,7 +62,7 @@ export function transformDashboardChart1(dashboardData, period = 'month') {
       {
         label: "Electricity",
         value: totalCost.toFixed(2),
-        tooltext: `Electricity<br>Cost: $${totalCost.toFixed(2)}<br>Energy: ${totalEnergy.toFixed(2)} kWh`
+        tooltext: `Electricity<br>Cost: ₹${totalCost.toFixed(2)}<br>Energy: ${totalEnergy.toFixed(2)} kWh`
       }
     ]
   };
