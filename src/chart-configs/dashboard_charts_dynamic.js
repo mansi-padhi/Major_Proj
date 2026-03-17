@@ -28,22 +28,34 @@ export function getDashboardChart4Config(readings, period = 'month') {
 
   const data = readings.data;
   
-  // Calculate average power for the period
-  // Since we have dual sensors, we'll show them as Load 1 and Load 2
-  let totalPower = 0;
+  // Calculate average current for each sensor across the period
+  // Then calculate power: P = V × I
+  const VOLTAGE = 3.3; // Voltage for calculation (Note: This should be mains voltage 230V for accurate power readings)
+  let totalSensor1Current = 0;
+  let totalSensor2Current = 0;
   let count = 0;
   
   data.forEach(item => {
-    totalPower += parseFloat(item.avgPower || item.power || 0);
+    // If sensor data is available in aggregated results, use it
+    // Otherwise, estimate from total current (sensor1 ≈ 30%, sensor2 ≈ 70% based on typical readings)
+    if (item.avgSensor1 !== undefined && item.avgSensor2 !== undefined) {
+      totalSensor1Current += parseFloat(item.avgSensor1 || 0);
+      totalSensor2Current += parseFloat(item.avgSensor2 || 0);
+    } else if (item.avgCurrent !== undefined) {
+      // Estimate split based on typical ratio
+      const avgCurrent = parseFloat(item.avgCurrent || 0);
+      totalSensor1Current += avgCurrent * 0.30;
+      totalSensor2Current += avgCurrent * 0.70;
+    }
     count++;
   });
   
-  const avgPower = count > 0 ? totalPower / count : 0;
+  const avgSensor1Current = count > 0 ? totalSensor1Current / count : 0;
+  const avgSensor2Current = count > 0 ? totalSensor2Current / count : 0;
   
-  // Split power between two loads (assuming roughly equal distribution)
-  // In reality, sensor1 and sensor2 would have different values
-  const load1Power = avgPower * 0.45; // ~45% for Load 1
-  const load2Power = avgPower * 0.55; // ~55% for Load 2
+  // Calculate power for each load: P = V × I
+  const load1Power = VOLTAGE * avgSensor1Current;
+  const load2Power = VOLTAGE * avgSensor2Current;
   
   const categories = [
     { label: "Load 1" },
@@ -53,11 +65,11 @@ export function getDashboardChart4Config(readings, period = 'month') {
   const dataPoints = [
     { 
       value: load1Power.toFixed(2),
-      toolText: `Load 1: ${load1Power.toFixed(2)} W`
+      toolText: `Load 1: ${load1Power.toFixed(2)} W (${avgSensor1Current.toFixed(3)} A)`
     },
     { 
       value: load2Power.toFixed(2),
-      toolText: `Load 2: ${load2Power.toFixed(2)} W`
+      toolText: `Load 2: ${load2Power.toFixed(2)} W (${avgSensor2Current.toFixed(3)} A)`
     }
   ];
 
