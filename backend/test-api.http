@@ -1,0 +1,53 @@
+### Test API Endpoints
+### You can use this file with REST Client extension in VS Code
+### Or use the commands below with curl/Postman
+
+### Health Check
+GET http://localhost:5000/api/health
+
+### Root Endpoint
+GET http://localhost:5000/
+
+### Add a Reading (ESP32 simulation)
+POST http://localhost:5000/api/readings
+Content-Type: application/json
+
+{
+  "deviceId": "ESP32_001",
+  "voltage": 220.5,
+  "current": 2.3,
+  "power": 507.15,
+  "energy": 0.0007,
+  "location": "Home",
+  "appliance": "Lighting"
+}
+
+### Get Latest Reading
+GET http://localhost:5000/api/readings/latest
+
+### Get Today's Readings
+GET http://localhost:5000/api/readings/today
+
+### Get This Month's Readings
+GET http://localhost:5000/api/readings/month
+
+### Get Dashboard Summary
+GET http://localhost:5000/api/dashboard/summary
+
+### Get Real-time Stats
+GET http://localhost:5000/api/dashboard/realtime
+
+### Get Today's Cost
+GET http://localhost:5000/api/cost?period=today
+
+### Get Cost Prediction
+GET http://localhost:5000/api/cost/prediction?period=month
+
+### Get Cost Comparison
+GET http://localhost:5000/api/cost/comparison?period=month
+
+### Get Appliance Data
+GET http://localhost:5000/api/appliances?period=today
+
+### Get Specific Appliance
+GET http://localhost:5000/api/appliances/Lighting?period=today
