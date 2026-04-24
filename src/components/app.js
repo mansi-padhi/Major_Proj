@@ -2,6 +2,7 @@ import React from 'react';
 import { connect } from 'react-redux';
 import OptionList from '../containers/optionlist';
 import ChartDetail from '../containers/chart';
+import MonthlyScrollingBackground from './MonthlyScrollingBackground';
 import { fetchDashboardSummary, fetchReadings, fetchCost, fetchAppliances, setPeriod } from '../actions/index';
 import './app.css';
 
@@ -70,9 +71,9 @@ class App extends React.Component {
 
     render() {
         return (
-
             <div>
-
+                {/* Scrolling Background with Monthly Data */}
+                <MonthlyScrollingBackground />
 
                 <div className="container-fluid">
                     <div className="row flex-xl-nowrap">
@@ -129,38 +130,6 @@ class App extends React.Component {
                             </div>
                             {/* <!-- time frame row end -->
                     <!-- dashboard cards start --> */}
-                            <div className="row mt-3 db-chart">
-                                <div id="parent1" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text1">COST PREDICTED</div>
-                                        <div id="chart1" className="chart">Rendering chart 1 here</div>
-                                    </div>
-                                </div>
-                                <div id="parent2" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text2">CHANGE IN COST</div>
-                                        <div id="chart2" className="chart">Chart 2</div>
-                                    </div>
-                                </div>
-                                <div id="parent3" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text3">USAGE ESTIMATE</div>
-                                        <div id="chart3" className="chart">Chart 3</div>
-                                    </div>
-                                </div>
-                                <div id="parent4" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text4">ACTIVE APPLIANCES</div>
-                                        <div id="chart4" className="chart">Chart 4</div>
-                                    </div>
-                                </div>
-                                <div id="parent5" className="col-lg-6 col-xl-4">
-                                    <div className="chart-card mb-4">
-                                        <div className="chart-title" id="text5">ENERGY INTENSITY</div>
-                                        <div id="chart5" className="chart">Chart 5</div>
-                                    </div>
-                                </div>
-                            </div>
                             <ChartDetail />
 
 

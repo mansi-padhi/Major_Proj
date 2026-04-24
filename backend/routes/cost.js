@@ -8,28 +8,41 @@ const ELECTRICITY_RATE = parseFloat(process.env.ELECTRICITY_RATE) || 7.0; // ₹
 // GET - Calculate cost for a period
 router.get('/', async (req, res) => {
   try {
-    const { period, deviceId, rate } = req.query;
+    const { period, deviceId, rate, month, year } = req.query;
     const costRate = rate ? parseFloat(rate) : ELECTRICITY_RATE;
 
-    let startDate;
+    let startDate, endDate;
     const now = new Date();
 
-    switch (period) {
-      case 'today':
-        startDate = new Date(now.setHours(0, 0, 0, 0));
-        break;
-      case 'month':
-        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        break;
-      case 'year':
-        startDate = new Date(now.getFullYear(), 0, 1);
-        break;
-      default:
-        startDate = new Date(now.setHours(0, 0, 0, 0));
+    // If specific month and year provided, use those
+    if (month && year) {
+      const m = parseInt(month);
+      const y = parseInt(year);
+      startDate = new Date(y, m - 1, 1); // month is 0-indexed
+      endDate = new Date(y, m, 0, 23, 59, 59, 999); // last day of month
+    } else {
+      // Use period
+      switch (period) {
+        case 'today':
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          endDate = new Date(now.setHours(23, 59, 59, 999));
+          break;
+        case 'month':
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+          break;
+        case 'year':
+          startDate = new Date(now.getFullYear(), 0, 1);
+          endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+          break;
+        default:
+          startDate = new Date(now.setHours(0, 0, 0, 0));
+          endDate = new Date(now.setHours(23, 59, 59, 999));
+      }
     }
 
     const query = {
-      timestamp: { $gte: startDate }
+      timestamp: { $gte: startDate, $lte: endDate }
     };
 
     if (deviceId) query.deviceId = deviceId;
