@@ -1,4 +1,4 @@
 {
-    "kiroAgent.configureMCP": "Disabled",
+    "kiroAgent.configureMCP": "Enabled",
     "postman.settings.dotenv-detection-notification-visibility": false
 }
