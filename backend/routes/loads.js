@@ -2,28 +2,40 @@ const express = require('express');
 const router = express.Router();
 const Reading = require('../models/Reading');
 
-// GET - Get all loads summary
+const RATE = 8; // ₹8 per kWh
+
+// GET /api/loads/summary?startDate=&endDate=  (or ?period=today|month|year)
 router.get('/summary', async (req, res) => {
     try {
-        const { period = 'today' } = req.query;
-
-        let startDate;
+        const { period, startDate, endDate, deviceId } = req.query;
         const now = new Date();
 
-        if (period === 'today') {
-            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        } else if (period === 'month') {
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-        } else if (period === 'year') {
-            startDate = new Date(now.getFullYear(), 0, 1);
+        let start, end;
+
+        if (startDate && endDate) {
+            start = new Date(startDate);
+            end = new Date(endDate);
+        } else {
+            switch (period) {
+                case 'month':
+                    start = new Date(now.getFullYear(), now.getMonth(), 1);
+                    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+                    break;
+                case 'year':
+                    start = new Date(now.getFullYear(), 0, 1);
+                    end = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+                    break;
+                default: // today
+                    start = new Date(now); start.setHours(0, 0, 0, 0);
+                    end = new Date(now); end.setHours(23, 59, 59, 999);
+            }
         }
 
-        const loadsSummary = await Reading.aggregate([
-            {
-                $match: {
-                    timestamp: { $gte: startDate }
-                }
-            },
+        const matchStage = { timestamp: { $gte: start, $lte: end } };
+        if (deviceId) matchStage.deviceId = deviceId;
+
+        const summary = await Reading.aggregate([
+            { $match: matchStage },
             {
                 $group: {
                     _id: '$loadId',
@@ -31,41 +43,25 @@ router.get('/summary', async (req, res) => {
                     totalEnergy: { $sum: '$energy' },
                     avgPower: { $avg: '$power' },
                     maxPower: { $max: '$power' },
-                    avgVoltage: { $avg: '$voltage' },
-                    avgCurrent: { $avg: '$current' },
                     count: { $sum: 1 }
                 }
             },
-            {
-                $sort: { _id: 1 }
-            }
+            { $sort: { _id: 1 } }
         ]);
 
-        const ELECTRICITY_RATE = 3; // ₹ per kWh
-
-        const loads = loadsSummary.map(load => ({
-            loadId: load._id,
-            loadName: load.loadName,
-            energy: parseFloat(load.totalEnergy.toFixed(3)),
-            cost: parseFloat((load.totalEnergy * ELECTRICITY_RATE).toFixed(2)),
-            avgPower: parseFloat(load.avgPower.toFixed(2)),
-            maxPower: parseFloat(load.maxPower.toFixed(2)),
-            avgVoltage: parseFloat(load.avgVoltage.toFixed(2)),
-            avgCurrent: parseFloat(load.avgCurrent.toFixed(3)),
-            readings: load.count
+        const loads = summary.map(l => ({
+            loadId: l._id,
+            loadName: l.loadName,
+            energyKwh: parseFloat(l.totalEnergy.toFixed(6)),
+            costINR: parseFloat((l.totalEnergy * RATE).toFixed(2)),
+            avgPowerW: parseFloat(l.avgPower.toFixed(1)),
+            maxPowerW: parseFloat(l.maxPower.toFixed(1)),
+            readings: l.count
         }));
 
-        res.json({
-            success: true,
-            period,
-            loads
-        });
+        res.json({ success: true, loads, rate: RATE });
     } catch (error) {
-        console.error('Error fetching loads summary:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message
-        });
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

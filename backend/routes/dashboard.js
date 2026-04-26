@@ -84,6 +84,91 @@ router.get('/summary', async (req, res) => {
   }
 });
 
+// GET /api/dashboard/today — hourly kWh breakdown + live power for today tab
+router.get('/today', async (req, res) => {
+  try {
+    const { deviceId } = req.query;
+    const now = new Date();
+    const startOfToday = new Date(now);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const matchStage = { timestamp: { $gte: startOfToday } };
+    if (deviceId) matchStage.deviceId = deviceId;
+
+    // Hourly energy aggregation — one bar per hour
+    const hourlyRaw = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: { $hour: '$timestamp' },
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          // per-load breakdown (scalable to 2 loads)
+          loads: {
+            $push: { loadId: '$loadId', energy: '$energy', power: '$power' }
+          }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Fill all 24 hours (0-23), zero for hours with no data
+    const RATE = 8.0; // ₹8 per kWh
+    const hourly = Array.from({ length: 24 }, (_, h) => {
+      const found = hourlyRaw.find(r => r._id === h);
+      return {
+        hour: h,
+        label: `${String(h).padStart(2, '0')}:00`,
+        energyKwh: found ? parseFloat(found.totalEnergy.toFixed(4)) : 0,
+        costINR: found ? parseFloat((found.totalEnergy * RATE).toFixed(2)) : 0,
+        avgPowerW: found ? parseFloat(found.avgPower.toFixed(1)) : 0
+      };
+    });
+
+    // Latest reading for live power gauge
+    const latestQuery = deviceId ? { deviceId } : {};
+    const latest = await Reading.findOne(latestQuery).sort({ timestamp: -1 });
+
+    // Today totals
+    const todayTotals = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          maxPower: { $max: '$power' }
+        }
+      }
+    ]);
+
+    const totals = todayTotals[0] || { totalEnergy: 0, avgPower: 0, maxPower: 0 };
+
+    res.json({
+      success: true,
+      hourly,
+      live: latest ? {
+        powerW: parseFloat(latest.power.toFixed(1)),
+        currentA: parseFloat(latest.current.toFixed(3)),
+        voltageV: parseFloat(latest.voltage.toFixed(1)),
+        timestamp: latest.timestamp,
+        // per-load data (scalable)
+        loadId: latest.loadId,
+        loadName: latest.loadName
+      } : null,
+      totals: {
+        energyKwh: parseFloat(totals.totalEnergy.toFixed(4)),
+        costINR: parseFloat((totals.totalEnergy * RATE).toFixed(2)),
+        avgPowerW: parseFloat(totals.avgPower.toFixed(1)),
+        maxPowerW: parseFloat(totals.maxPower.toFixed(1))
+      },
+      rate: RATE
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET - Real-time stats (last 5 minutes)
 router.get('/realtime', async (req, res) => {
   try {

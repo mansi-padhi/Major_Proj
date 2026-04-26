@@ -6,18 +6,9 @@ import charts from 'fusioncharts/fusioncharts.charts';
 import widgets from 'fusioncharts/fusioncharts.widgets';
 import powercharts from 'fusioncharts/fusioncharts.powercharts';
 import theme from 'fusioncharts/themes/fusioncharts.theme.ocean';
-import ReactFC from 'react-fusioncharts';
 
-// Import dynamic chart configs for Dashboard
-import {
-    getDashboardChart1Config,
-    getDashboardChart2Config,
-    getDashboardChart3Config,
-    getDashboardChart4Config,
-    getDashboardChart5Config
-} from '../chart-configs/dashboard_charts_dynamic';
-
-// Import improved components
+// Import components
+import DashboardComponent from '../components/dashboard_component';
 import CostComponentImproved from '../components/cost_component_improved';
 import AppliancesComponentImproved from '../components/appliances_component_improved';
 import UsageComponentImproved from '../components/usage_component_improved';
@@ -66,81 +57,23 @@ class ChartDetail extends Component {
 
     renderDashboard() {
         const { energy } = this.props;
-        const hasDashboardData = energy && energy.dashboard && energy.dashboard.month;
-        const monthReadings = energy && energy.readings && energy.readings.month;
+        const period = (energy && energy.period) || 'month';
 
-        if (hasDashboardData && monthReadings) {
-            const chart1Data = getDashboardChart1Config(energy.dashboard, 'month');
-            const chart2Data = getDashboardChart2Config(monthReadings, 'month');
-            const chart3Data = getDashboardChart3Config(monthReadings, 'month');
-            const chart4Data = getDashboardChart4Config(monthReadings, 'month');
-            const chart5Data = getDashboardChart5Config(monthReadings, 'month');
-
-            return (
-                <div className="row mt-3 db-chart">
-                    <div className="col-lg-6 col-xl-4">
-                        <div className="chart-card mb-4">
-                            <div className="chart-title">COST PREDICTED</div>
-                            <div className="chart">
-                                <ReactFC type="doughnut2d" width="100%" height="300" dataFormat="JSON" dataSource={chart1Data} />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-6 col-xl-4">
-                        <div className="chart-card mb-4">
-                            <div className="chart-title">CHANGE IN COST</div>
-                            <div className="chart">
-                                <ReactFC type="msline" width="100%" height="300" dataFormat="JSON" dataSource={chart2Data} />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-6 col-xl-4">
-                        <div className="chart-card mb-4">
-                            <div className="chart-title">USAGE ESTIMATE</div>
-                            <div className="chart">
-                                <ReactFC type="msline" width="100%" height="300" dataFormat="JSON" dataSource={chart3Data} />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-6 col-xl-4">
-                        <div className="chart-card mb-4">
-                            <div className="chart-title">ACTIVE APPLIANCES</div>
-                            <div className="chart">
-                                <ReactFC type="msline" width="100%" height="300" dataFormat="JSON" dataSource={chart4Data} />
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-lg-6 col-xl-4">
-                        <div className="chart-card mb-4">
-                            <div className="chart-title">ENERGY INTENSITY</div>
-                            <div className="chart">
-                                <ReactFC type="msline" width="100%" height="300" dataFormat="JSON" dataSource={chart5Data} />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            );
-        } else {
-            return (
-                <div className="row mt-3 db-chart">
-                    <div className="col-12">
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            height: '300px',
-                            color: '#FDFDFD',
-                            fontSize: '18px',
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            margin: '20px'
-                        }}>
-                            Waiting for ESP32 data...
-                        </div>
-                    </div>
-                </div>
-            );
+        // Today tab: show the two new clean charts
+        if (period === 'today') {
+            return <DashboardComponent />;
         }
+
+        // Month / Year tabs: placeholder until we build those views
+        return (
+            <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                height: '300px', color: '#AAAAAA', fontSize: '16px',
+                backgroundColor: '#1e1e2e', borderRadius: '8px', margin: '20px 0'
+            }}>
+                {period === 'month' ? 'Monthly view coming soon' : 'Yearly view coming soon'}
+            </div>
+        );
     }
 
     render() {

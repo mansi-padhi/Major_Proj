@@ -11,9 +11,9 @@ class App extends React.Component {
     componentDidMount() {
         // Fetch initial data
         this.props.fetchDashboardSummary();
-        this.props.fetchReadings('month');
-        this.props.fetchCost('month');
-        this.props.fetchAppliances('month');
+        this.props.fetchReadings('today');
+        this.props.fetchCost('today');
+        this.props.fetchAppliances('today');
 
         var todayElem = document.getElementById('today');
         var monthElem = document.getElementById('month');
@@ -48,7 +48,7 @@ class App extends React.Component {
         });
 
         document.getElementById('Dashboard').click();
-        document.getElementById('month').click();
+        document.getElementById('today').click();
 
         // Auto-refresh data every 30 seconds
         this.refreshInterval = setInterval(() => {

@@ -61,6 +61,7 @@ const readingSchema = new mongoose.Schema({
   motionDetected: { type: Boolean, default: null },
   relay1: { type: String, enum: ['on', 'off', null], default: null },
   relay2: { type: String, enum: ['on', 'off', null], default: null },
+  loadDetected: { type: Boolean, default: false }, // Current-based load detection
 
   // Timestamp
   timestamp: {
@@ -132,7 +133,8 @@ readingSchema.methods.toFrontend = function () {
     appliance: this.appliance,
     location: this.location,
     timestamp: this.timestamp,
-    cost: this.cost
+    cost: this.cost,
+    loadDetected: this.loadDetected
   };
 };
 

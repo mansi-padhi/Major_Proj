@@ -102,7 +102,7 @@ class MonthlyScrollingBackground extends React.Component {
                             e.target.style.transform = 'scale(1)';
                         }}
                     >
-                        📊 {monthsToShow === 12 ? 'Show 6 Months' : 'Show 12 Months'}
+                        <span role="img" aria-label="chart">📊</span> {monthsToShow === 12 ? 'Show 6 Months' : 'Show 12 Months'}
                     </button>
                 </div>
 
@@ -158,18 +158,11 @@ class MonthlyScrollingBackground extends React.Component {
                                 }}>
                                     {month.label}
                                 </div>
-                                <div style={{
-                                    fontSize: '14px',
-                                    color: '#FDFDFD',
-                                    marginBottom: '5px'
-                                }}>
-                                    ⚡ {month.energy.toFixed(1)} kWh
+                                <div style={{ fontSize: '14px', color: '#FDFDFD', marginBottom: '5px' }}>
+                                    <span role="img" aria-label="lightning">⚡</span> {month.energy.toFixed(1)} kWh
                                 </div>
-                                <div style={{
-                                    fontSize: '14px',
-                                    color: '#FFA500'
-                                }}>
-                                    💰 ₹{month.cost.toFixed(0)}
+                                <div style={{ fontSize: '14px', color: '#FFA500' }}>
+                                    <span role="img" aria-label="money bag">💰</span> ₹{month.cost.toFixed(0)}
                                 </div>
                             </div>
                         ))}

@@ -20,8 +20,8 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => {
     console.log('✅ MongoDB Connected Successfully');
     // Initialize Telegram bot after DB is ready
-    const { initBot } = require('./services/telegramService');
-    initBot();
+    // const { initBot } = require('./services/telegramService');
+    // initBot();
   })
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
 
@@ -36,7 +36,7 @@ app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/loads', require('./routes/loads'));
 app.use('/api/relays', require('./routes/relays'));
 app.use('/api/safety', require('./routes/safety'));
-app.use('/api/telegram', require('./routes/telegram'));
+// app.use('/api/telegram', require('./routes/telegram'));
 app.use('/api/ai', require('./routes/ai'));
 
 // Health check endpoint
@@ -62,7 +62,7 @@ app.get('/', (req, res) => {
       dashboard: '/api/dashboard',
       relays: '/api/relays',
       safety: '/api/safety',
-      telegram: '/api/telegram',
+      // telegram: '/api/telegram',
       ai: '/api/ai'
     }
   });
@@ -79,7 +79,7 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
+app.listen(PORT,'0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 API available at http://localhost:${PORT}`);
 });

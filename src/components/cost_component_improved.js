@@ -225,7 +225,7 @@ class CostComponentImproved extends React.Component {
                                 marginTop: '20px'
                             }}>
                                 <h4 style={{ marginBottom: '20px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                    💰 Cost Breakdown
+                                    <span role="img" aria-label="money">💰</span> Cost Breakdown
                                 </h4>
                                 <div className="row">
                                     <div className="col-md-4" style={{ marginBottom: '15px' }}>
@@ -264,7 +264,7 @@ class CostComponentImproved extends React.Component {
                                 marginBottom: '20px'
                             }}>
                                 <h4 style={{ marginBottom: '20px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                    📊 Summary
+                                    <span role="img" aria-label="chart">📊</span> Summary
                                 </h4>
                                 <div className="stat-row" style={{ marginBottom: '20px', borderBottom: '1px solid #3a3a4a', paddingBottom: '15px' }}>
                                     <div className="stat-title" style={{ fontSize: '14px', opacity: '0.7', marginBottom: '5px' }}>
@@ -297,7 +297,10 @@ class CostComponentImproved extends React.Component {
 
                                 <div className="stat-row">
                                     <div className="stat-title" style={{ fontSize: '14px', opacity: '0.7', marginBottom: '5px' }}>
-                                        {stats.savings >= 0 ? '💚 Savings' : '⚠️ Extra Cost'}
+                                        {stats.savings >= 0
+                                            ? <span><span role="img" aria-label="green heart">💚</span> Savings</span>
+                                            : <span><span role="img" aria-label="warning">⚠️</span> Extra Cost</span>
+                                        }
                                     </div>
                                     <div className="stat-value" style={{
                                         fontSize: '28px',
@@ -317,7 +320,7 @@ class CostComponentImproved extends React.Component {
                                 color: '#FDFDFD'
                             }}>
                                 <h4 style={{ marginBottom: '15px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                    💡 Energy Saving Tips
+                                    <span role="img" aria-label="bulb">💡</span> Energy Saving Tips
                                 </h4>
                                 <ul style={{ fontSize: '14px', lineHeight: '1.8', paddingLeft: '20px' }}>
                                     <li>Turn off lights when not in use</li>

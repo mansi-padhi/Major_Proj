@@ -1,346 +1,453 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import ReactFC from 'react-fusioncharts';
-import { fetchAppliances } from '../actions/index';
+import FusionCharts from 'fusioncharts';
+import Charts from 'fusioncharts/fusioncharts.charts';
+import FusionTheme from 'fusioncharts/themes/fusioncharts.theme.fusion';
 
-class AppliancesComponentImproved extends React.Component {
-    componentDidMount() {
-        // Fetch appliances data from backend
-        const { dispatch, energy } = this.props;
-        const period = (energy && energy.period) || 'month';
-        dispatch(fetchAppliances(period));
+Charts(FusionCharts);
+FusionTheme(FusionCharts);
+FusionCharts.options.creditLabel = false;
+
+const API = 'http://localhost:5000/api';
+const RATE = 8; // ₹8 per kWh
+
+// ── Loads config — add Load 3 here when you wire a third sensor ──────────────
+const LOADS = [
+  { id: 'Load1', channel: 'load1', label: 'Load 1', color: '#00D4FF' },
+  { id: 'Load2', channel: 'load2', label: 'Load 2', color: '#FFA500' }
+];
+
+class AppliancesComponent extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      loads: [],          // per-load energy/cost stats
+      relays: [],         // relay states from backend
+      isOnline: false,
+      loading: true,
+      relayLoading: {},   // { load1: true/false } while toggling
+      loadDetected: false // actual load detection from current sensor
+    };
+    this._timer = null;
+  }
+
+  componentDidMount() {
+    this.fetchAll();
+    // Poll relay state and load detection every 5 seconds
+    this._timer = setInterval(() => {
+      this.fetchRelays();
+      this.fetchLoadDetection();
+    }, 5000);
+  }
+
+  componentWillUnmount() {
+    clearInterval(this._timer);
+  }
+
+  // ── Data fetching ────────────────────────────────────────────────────────────
+
+  async fetchAll() {
+    await Promise.all([this.fetchLoads(), this.fetchRelays(), this.fetchLoadDetection()]);
+    this.setState({ loading: false });
+  }
+
+  async fetchLoads() {
+    try {
+      const { energy } = this.props;
+      const period = (energy && energy.period) || 'today';
+
+      // Build date range based on period
+      const now = new Date();
+      let startDate, endDate;
+      if (period === 'today') {
+        startDate = new Date(now); startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now); endDate.setHours(23, 59, 59, 999);
+      } else if (period === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      } else {
+        startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+      }
+
+      const res = await fetch(
+        `${API}/loads/summary?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+      );
+      const data = await res.json();
+      if (data.success) {
+        this.setState({ loads: data.loads || [] });
+      }
+    } catch (e) {
+      console.error('Loads fetch error:', e);
+    }
+  }
+
+  async fetchRelays() {
+    try {
+      const res = await fetch(`${API}/relays?deviceId=esp32-1`);
+      const data = await res.json();
+      if (data.success) {
+        this.setState({ relays: data.relays, isOnline: data.isOnline });
+      }
+    } catch (e) {
+      console.error('Relay fetch error:', e);
+    }
+  }
+
+  async fetchLoadDetection() {
+    try {
+      const res = await fetch(`${API}/readings/latest?deviceId=esp32-1`);
+      const data = await res.json();
+      if (data.success && data.data) {
+        this.setState({ loadDetected: data.data.loadDetected || false });
+      }
+    } catch (e) {
+      console.error('Load detection fetch error:', e);
+    }
+  }
+
+  async toggleRelay(channel, currentState) {
+    const newState = currentState === 'on' ? 'off' : 'on';
+    this.setState(prev => ({
+      relayLoading: { ...prev.relayLoading, [channel]: true }
+    }));
+
+    // Optimistic update
+    this.setState(prev => ({
+      relays: prev.relays.map(r =>
+        r.channel === channel ? { ...r, state: newState } : r
+      )
+    }));
+
+    try {
+      await fetch(`${API}/relays/${channel}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state: newState, deviceId: 'esp32-1' })
+      });
+    } catch (e) {
+      console.error('Relay toggle error:', e);
+      // Revert on failure
+      this.setState(prev => ({
+        relays: prev.relays.map(r =>
+          r.channel === channel ? { ...r, state: currentState } : r
+        )
+      }));
+    } finally {
+      this.setState(prev => ({
+        relayLoading: { ...prev.relayLoading, [channel]: false }
+      }));
+    }
+  }
+
+  // ── Chart config ─────────────────────────────────────────────────────────────
+
+  getComparisonChartConfig() {
+    const { loads } = this.state;
+
+    // Build per-load data — always show all configured loads
+    const energyData = LOADS.map(cfg => {
+      const found = loads.find(l => l.loadId === cfg.id);
+      return { label: cfg.label, value: found ? found.energyKwh.toFixed(4) : '0' };
+    });
+
+    const costData = LOADS.map(cfg => {
+      const found = loads.find(l => l.loadId === cfg.id);
+      return { label: cfg.label, value: found ? found.costINR.toFixed(2) : '0' };
+    });
+
+    return {
+      type: 'msbar2d',
+      width: '100%',
+      height: '300',
+      dataFormat: 'json',
+      dataSource: {
+        chart: {
+          caption: 'Load Comparison',
+          subCaption: 'Energy (kWh) and Cost (₹) per load',
+          xAxisName: 'Load',
+          yAxisName: 'Value',
+          theme: 'fusion',
+          bgColor: '#1e1e2e',
+          canvasBgColor: '#1e1e2e',
+          baseFontColor: '#CCCCCC',
+          captionFontColor: '#FFFFFF',
+          subCaptionFontColor: '#AAAAAA',
+          showBorder: '0',
+          showCanvasBorder: '0',
+          divLineColor: '#2e2e3e',
+          showAlternateHGridColor: '0',
+          paletteColors: '#00D4FF,#FFA500',
+          plotBorderAlpha: '0',
+          showValues: '1',
+          valueFontColor: '#FFFFFF',
+          toolTipBgColor: '#2a2a3a',
+          toolTipColor: '#FFFFFF',
+          legendBgAlpha: '0',
+          legendBorderAlpha: '0',
+          legendFontColor: '#CCCCCC',
+          useRoundEdges: '1'
+        },
+        categories: [{ category: LOADS.map(l => ({ label: l.label })) }],
+        dataset: [
+          { seriesname: 'Energy (kWh)', data: energyData },
+          { seriesname: 'Cost (₹)',     data: costData }
+        ]
+      }
+    };
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────────
+
+  getRelayState(channel) {
+    const r = this.state.relays.find(r => r.channel === channel);
+    return r ? r.state : 'off';
+  }
+
+  getTopConsumer() {
+    const { loads } = this.state;
+    if (!loads || loads.length === 0) return null;
+    return loads.reduce((top, l) => (!top || l.energyKwh > top.energyKwh ? l : top), null);
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+
+  render() {
+    const { loads, isOnline, loading, relayLoading } = this.state;
+    const { energy } = this.props;
+    const period = (energy && energy.period) || 'today';
+    const topConsumer = this.getTopConsumer();
+
+    if (loading) {
+      return (
+        <div style={styles.loadingBox}>
+          <div style={styles.loadingText}>Loading appliance data...</div>
+        </div>
+      );
     }
 
-    componentDidUpdate(prevProps) {
-        // Fetch new data when period changes
-        const prevPeriod = prevProps.energy && prevProps.energy.period;
-        const currentPeriod = this.props.energy && this.props.energy.period;
+    return (
+      <div style={{ padding: '0 8px' }}>
 
-        if (prevPeriod !== currentPeriod) {
-            this.props.dispatch(fetchAppliances(currentPeriod || 'month'));
-        }
-    }
+        {/* ── Top stat cards ── */}
+        <div style={styles.cardRow}>
 
-    getAppliancesChartConfig() {
-        const { energy } = this.props;
-        const period = (energy && energy.period) || 'month';
-        const appliancesData = energy && energy.appliances && energy.appliances[period];
+          {/* Total Devices */}
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #00D4FF' }}>
+            <div style={styles.statLabel}>Total Loads</div>
+            <div style={{ ...styles.statValue, color: '#00D4FF' }}>{LOADS.length}</div>
+          </div>
 
-        // Show empty chart if no data from MongoDB
-        if (!appliancesData || !appliancesData.devices || appliancesData.devices.length === 0) {
-            return {
-                type: 'doughnut2d',
-                width: '100%',
-                height: '500',
-                dataFormat: 'json',
-                dataSource: {
-                    chart: {
-                        caption: 'Energy Usage by Device',
-                        subCaption: 'Waiting for data from ESP32...',
-                        numberSuffix: ' kWh',
-                        theme: 'ocean',
-                        bgColor: '#1e1e2e',
-                        canvasBgColor: '#1e1e2e',
-                        baseFontColor: '#FDFDFD',
-                        showPercentValues: '1',
-                        showValues: '1',
-                        pieRadius: '140',
-                        doughnutRadius: '70'
-                    },
-                    data: []
-                }
-            };
-        }
-
-        // Transform appliances data for chart
-        const chartData = [];
-        if (appliancesData.devices && Array.isArray(appliancesData.devices)) {
-            appliancesData.devices.forEach(device => {
-                chartData.push({
-                    label: device.name || device.deviceId || 'Unknown',
-                    value: parseFloat(device.energy || 0).toFixed(2)
-                });
-            });
-        }
-
-        return {
-            type: 'doughnut2d',
-            width: '100%',
-            height: '500',
-            dataFormat: 'json',
-            dataSource: {
-                chart: {
-                    caption: 'Energy Usage by Device',
-                    subCaption: `Total: ${appliancesData.totalEnergy ? appliancesData.totalEnergy.toFixed(2) : '0.00'} kWh`,
-                    numberSuffix: ' kWh',
-                    theme: 'ocean',
-                    bgColor: '#1e1e2e',
-                    canvasBgColor: '#1e1e2e',
-                    baseFontColor: '#FDFDFD',
-                    showPercentValues: '1',
-                    showValues: '1',
-                    pieRadius: '140',
-                    doughnutRadius: '70',
-                    paletteColors: '#00D4FF,#FFA500,#FF4444,#00FF00,#FF00FF,#FFFF00',
-                    use3DLighting: '1',
-                    showShadow: '1'
-                },
-                data: chartData
-            }
-        };
-    }
-
-    getDeviceStats() {
-        const { energy } = this.props;
-        const period = (energy && energy.period) || 'month';
-        const appliancesData = energy && energy.appliances && energy.appliances[period];
-
-        if (!appliancesData || !appliancesData.devices) {
-            return [];
-        }
-
-        return appliancesData.devices.map(device => ({
-            name: device.name || device.deviceId || 'Unknown Device',
-            energy: device.energy || 0,
-            cost: device.cost || 0,
-            percentage: device.percentage || 0,
-            avgPower: device.avgPower || 0,
-            icon: this.getApplianceIcon(device.name || device.appliance || '')
-        }));
-    }
-
-    getApplianceIcon(applianceName) {
-        const name = applianceName.toLowerCase();
-
-        if (name.includes('refriger')) return '🧊';
-        if (name.includes('heating') || name.includes('ac')) return '🌡️';
-        if (name.includes('light')) return '💡';
-        if (name.includes('plug')) return '🔌';
-        if (name.includes('all')) return '⚡';
-        return '📱'; // Default icon
-    }
-
-    render() {
-        const chartConfig = this.getAppliancesChartConfig();
-        const deviceStats = this.getDeviceStats();
-        const { energy } = this.props;
-        const period = (energy && energy.period) || 'month';
-        const appliancesData = energy && energy.appliances && energy.appliances[period];
-        const totalEnergy = (appliancesData && appliancesData.totalEnergy) || 0;
-        const totalCost = (appliancesData && appliancesData.totalCost) || 0;
-
-        // Calculate top consumer
-        const topConsumer = deviceStats.length > 0 ? deviceStats[0] : null;
-
-        return (
-            <div className="container-fluid pl-5 pr-5">
-                {/* Top Stats Cards */}
-                <div className="row" style={{ marginBottom: '20px' }}>
-                    <div className="col-md-3">
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            borderLeft: '4px solid #00D4FF'
-                        }}>
-                            <div style={{ fontSize: '12px', opacity: '0.7', marginBottom: '5px' }}>
-                                Total Devices
-                            </div>
-                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#00D4FF' }}>
-                                {deviceStats.length}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-md-3">
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            borderLeft: '4px solid #FFA500'
-                        }}>
-                            <div style={{ fontSize: '12px', opacity: '0.7', marginBottom: '5px' }}>
-                                Total Energy
-                            </div>
-                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#FFA500' }}>
-                                {totalEnergy.toFixed(1)} kWh
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-md-3">
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            borderLeft: '4px solid #00FF00'
-                        }}>
-                            <div style={{ fontSize: '12px', opacity: '0.7', marginBottom: '5px' }}>
-                                Total Cost
-                            </div>
-                            <div style={{ fontSize: '32px', fontWeight: 'bold', color: '#00FF00' }}>
-                                ₹{totalCost.toFixed(0)}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-md-3">
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            borderLeft: '4px solid #FF4444'
-                        }}>
-                            <div style={{ fontSize: '12px', opacity: '0.7', marginBottom: '5px' }}>
-                                Top Consumer
-                            </div>
-                            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#FF4444' }}>
-                                {topConsumer ? `${topConsumer.icon} ${topConsumer.percentage.toFixed(0)}%` : 'N/A'}
-                            </div>
-                        </div>
-                    </div>
+          {/* Top Consumer */}
+          <div style={{ ...styles.statCard, borderLeft: '4px solid #FF4444' }}>
+            <div style={styles.statLabel}>Top Consumer</div>
+            {topConsumer ? (
+              <div>
+                <div style={{ ...styles.statValue, color: '#FF4444', fontSize: '20px' }}>
+                  {topConsumer.loadName || topConsumer.loadId}
                 </div>
-
-                <div className="row">
-                    {/* Chart Section */}
-                    <div className="col-md-7">
-                        <ReactFC {...chartConfig} />
-
-                        {/* Energy Efficiency Tips */}
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            marginTop: '20px'
-                        }}>
-                            <h4 style={{ marginBottom: '15px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                ⚡ Device Efficiency Tips
-                            </h4>
-                            <div className="row">
-                                <div className="col-md-6">
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <strong>🧊 Refrigeration:</strong>
-                                        <div style={{ fontSize: '13px', opacity: '0.8' }}>Keep temperature at 3-4°C</div>
-                                    </div>
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <strong>🌡️ AC/Heating:</strong>
-                                        <div style={{ fontSize: '13px', opacity: '0.8' }}>Set to 24-26°C for efficiency</div>
-                                    </div>
-                                </div>
-                                <div className="col-md-6">
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <strong>💡 Lighting:</strong>
-                                        <div style={{ fontSize: '13px', opacity: '0.8' }}>Switch to LED bulbs</div>
-                                    </div>
-                                    <div style={{ marginBottom: '10px' }}>
-                                        <strong>🔌 Plug Loads:</strong>
-                                        <div style={{ fontSize: '13px', opacity: '0.8' }}>Unplug when not in use</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Stats Section */}
-                    <div className="col-md-5">
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            marginBottom: '20px'
-                        }}>
-                            <h4 style={{ marginBottom: '20px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                📊 Summary
-                            </h4>
-                            <div style={{ marginBottom: '15px' }}>
-                                <div style={{ fontSize: '14px', opacity: '0.7' }}>Total Energy</div>
-                                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#00D4FF' }}>
-                                    {totalEnergy.toFixed(2)} kWh
-                                </div>
-                            </div>
-                            <div>
-                                <div style={{ fontSize: '14px', opacity: '0.7' }}>Total Cost</div>
-                                <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#FFA500' }}>
-                                    ₹{totalCost.toFixed(2)}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Device List */}
-                        <div style={{
-                            backgroundColor: '#2a2a3a',
-                            borderRadius: '8px',
-                            padding: '20px',
-                            color: '#FDFDFD',
-                            maxHeight: '400px',
-                            overflowY: 'auto'
-                        }}>
-                            <h4 style={{ marginBottom: '20px', borderBottom: '2px solid #00D4FF', paddingBottom: '10px' }}>
-                                Device Breakdown
-                            </h4>
-                            {deviceStats.length === 0 ? (
-                                <div style={{ textAlign: 'center', opacity: '0.5', padding: '20px' }}>
-                                    No device data available
-                                </div>
-                            ) : (
-                                deviceStats.map((device, index) => (
-                                    <div key={index} style={{
-                                        marginBottom: '15px',
-                                        padding: '15px',
-                                        backgroundColor: '#1e1e2e',
-                                        borderRadius: '6px',
-                                        borderLeft: '4px solid #00D4FF'
-                                    }}>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            marginBottom: '8px'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                <span style={{ fontSize: '28px' }}>{device.icon}</span>
-                                                <div style={{ fontWeight: 'bold', fontSize: '16px' }}>
-                                                    {device.name}
-                                                </div>
-                                            </div>
-                                            <div style={{ color: '#00D4FF', fontWeight: 'bold' }}>
-                                                {device.percentage.toFixed(1)}%
-                                            </div>
-                                        </div>
-                                        <div style={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            fontSize: '14px',
-                                            opacity: '0.8'
-                                        }}>
-                                            <div>{device.energy.toFixed(2)} kWh</div>
-                                            <div>₹{device.cost.toFixed(2)}</div>
-                                        </div>
-                                        {device.avgPower > 0 && (
-                                            <div style={{
-                                                fontSize: '12px',
-                                                opacity: '0.6',
-                                                marginTop: '5px'
-                                            }}>
-                                                Avg Power: {device.avgPower.toFixed(2)} W
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                <div style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>
+                  {topConsumer.energyKwh.toFixed(4)} kWh · ₹{topConsumer.costINR.toFixed(2)}
                 </div>
+              </div>
+            ) : (
+              <div style={{ ...styles.statValue, color: '#666', fontSize: '16px' }}>No data yet</div>
+            )}
+          </div>
+
+          {/* Device online badge */}
+          <div style={{ ...styles.statCard, borderLeft: `4px solid ${isOnline ? '#00C853' : '#FF3D00'}` }}>
+            <div style={styles.statLabel}>ESP32 Status</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px' }}>
+              <span style={{
+                width: '12px', height: '12px', borderRadius: '50%',
+                backgroundColor: isOnline ? '#00C853' : '#FF3D00',
+                display: 'inline-block'
+              }} />
+              <span style={{ ...styles.statValue, fontSize: '18px', color: isOnline ? '#00C853' : '#FF3D00' }}>
+                {isOnline ? 'Online' : 'Offline'}
+              </span>
             </div>
-        );
-    }
+          </div>
+
+        </div>
+
+        {/* ── Main section: chart + relay control ── */}
+        <div style={styles.mainRow}>
+
+          {/* Left: Load comparison chart */}
+          <div style={styles.chartCard}>
+            <ReactFC {...this.getComparisonChartConfig()} />
+
+            {/* Per-load stats table below chart */}
+            <div style={styles.loadTable}>
+              <div style={styles.tableHeader}>
+                <span style={{ flex: 2 }}>Load</span>
+                <span style={{ flex: 1, textAlign: 'right' }}>Energy</span>
+                <span style={{ flex: 1, textAlign: 'right' }}>Cost</span>
+                <span style={{ flex: 1, textAlign: 'right' }}>Avg Power</span>
+              </div>
+              {LOADS.map(cfg => {
+                const d = loads.find(l => l.loadId === cfg.id);
+                return (
+                  <div key={cfg.id} style={styles.tableRow}>
+                    <span style={{ flex: 2, color: cfg.color, fontWeight: '600' }}>{cfg.label}</span>
+                    <span style={{ flex: 1, textAlign: 'right' }}>
+                      {d ? d.energyKwh.toFixed(4) : '0.0000'} kWh
+                    </span>
+                    <span style={{ flex: 1, textAlign: 'right' }}>
+                      ₹{d ? d.costINR.toFixed(2) : '0.00'}
+                    </span>
+                    <span style={{ flex: 1, textAlign: 'right' }}>
+                      {d ? d.avgPowerW.toFixed(1) : '0.0'} W
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Right: Relay control panel */}
+          <div style={styles.relayPanel}>
+            <div style={styles.relayTitle}>
+              Remote Control
+              {!isOnline && (
+                <span style={styles.offlineBadge}>Device Offline</span>
+              )}
+            </div>
+            <div style={styles.relaySubtitle}>
+              Toggle loads on or off remotely. ESP32 polls every 2 seconds.
+            </div>
+
+            {LOADS.map(cfg => {
+              const state = this.getRelayState(cfg.channel);
+              const isOn = state === 'on';
+              const busy = relayLoading[cfg.channel];
+              const { loadDetected } = this.state;
+
+              return (
+                <div key={cfg.channel} style={styles.relayCard}>
+                  <div style={styles.relayCardLeft}>
+                    <div style={{ ...styles.relayLoadName, color: cfg.color }}>
+                      {cfg.label}
+                    </div>
+                    <div style={styles.relayState}>
+                      <span style={{
+                        ...styles.stateDot,
+                        backgroundColor: isOn ? '#00C853' : '#555566'
+                      }} />
+                      Relay: {isOn ? 'ON' : 'OFF'}
+                    </div>
+                    <div style={styles.loadState}>
+                      <span style={{
+                        ...styles.stateDot,
+                        backgroundColor: loadDetected ? '#FFD700' : '#666666'
+                      }} />
+                      Load: {loadDetected ? 'DETECTED' : 'NO LOAD'}
+                    </div>
+                  </div>
+
+                  {/* Toggle switch */}
+                  <button
+                    onClick={() => !busy && isOnline && this.toggleRelay(cfg.channel, state)}
+                    disabled={busy || !isOnline}
+                    style={{
+                      ...styles.toggleBtn,
+                      backgroundColor: isOn ? '#00C853' : '#3a3a4a',
+                      opacity: (!isOnline || busy) ? 0.4 : 1,
+                      cursor: (!isOnline || busy) ? 'not-allowed' : 'pointer'
+                    }}
+                    title={!isOnline ? 'Device is offline' : `Turn ${isOn ? 'off' : 'on'} ${cfg.label}`}
+                  >
+                    {busy ? '...' : isOn ? 'Turn OFF' : 'Turn ON'}
+                  </button>
+                </div>
+              );
+            })}
+
+            <div style={styles.relayNote}>
+              Manual switch override always works regardless of web state.
+            </div>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 }
 
-const mapStateToProps = (state) => ({
-    energy: state.energy
-});
+// ── Styles ────────────────────────────────────────────────────────────────────
+const styles = {
+  loadingBox: {
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    height: '400px', backgroundColor: '#1e1e2e', borderRadius: '8px'
+  },
+  loadingText: { color: '#AAAAAA', fontSize: '16px' },
+  cardRow: { display: 'flex', gap: '16px', marginBottom: '20px', flexWrap: 'wrap' },
+  statCard: {
+    flex: '1 1 180px', backgroundColor: '#2a2a3a', borderRadius: '8px',
+    padding: '16px 20px', minWidth: '160px'
+  },
+  statLabel: {
+    fontSize: '11px', color: '#888888', marginBottom: '6px',
+    textTransform: 'uppercase', letterSpacing: '0.5px'
+  },
+  statValue: { fontSize: '28px', fontWeight: '700', color: '#FFFFFF' },
+  mainRow: { display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' },
+  chartCard: {
+    flex: '2 1 480px', backgroundColor: '#1e1e2e', borderRadius: '8px',
+    padding: '16px', minWidth: '320px'
+  },
+  loadTable: { marginTop: '16px' },
+  tableHeader: {
+    display: 'flex', padding: '8px 12px',
+    fontSize: '11px', color: '#666677', textTransform: 'uppercase',
+    letterSpacing: '0.5px', borderBottom: '1px solid #2e2e3e'
+  },
+  tableRow: {
+    display: 'flex', padding: '10px 12px', fontSize: '14px', color: '#CCCCCC',
+    borderBottom: '1px solid #2a2a3a'
+  },
+  relayPanel: {
+    flex: '1 1 260px', backgroundColor: '#1e1e2e', borderRadius: '8px',
+    padding: '20px', minWidth: '240px'
+  },
+  relayTitle: {
+    fontSize: '16px', fontWeight: '700', color: '#FFFFFF',
+    marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px'
+  },
+  relaySubtitle: { fontSize: '12px', color: '#666677', marginBottom: '20px', lineHeight: '1.5' },
+  offlineBadge: {
+    fontSize: '11px', backgroundColor: '#FF3D00', color: '#FFFFFF',
+    padding: '2px 8px', borderRadius: '10px', fontWeight: '600'
+  },
+  relayCard: {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#2a2a3a', borderRadius: '8px', padding: '16px',
+    marginBottom: '12px'
+  },
+  relayCardLeft: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  relayLoadName: { fontSize: '16px', fontWeight: '700' },
+  relayState: {
+    display: 'flex', alignItems: 'center', gap: '6px',
+    fontSize: '13px', color: '#AAAAAA'
+  },
+  loadState: {
+    display: 'flex', alignItems: 'center', gap: '6px',
+    fontSize: '12px', color: '#999999'
+  },
+  stateDot: { width: '8px', height: '8px', borderRadius: '50%', display: 'inline-block' },
+  toggleBtn: {
+    border: 'none', borderRadius: '6px', padding: '10px 20px',
+    fontSize: '14px', fontWeight: '700', color: '#FFFFFF',
+    transition: 'background-color 0.2s, opacity 0.2s', minWidth: '90px'
+  },
+  relayNote: {
+    fontSize: '11px', color: '#555566', marginTop: '16px',
+    lineHeight: '1.5', fontStyle: 'italic'
+  }
+};
 
-export default connect(mapStateToProps)(AppliancesComponentImproved);
+const mapStateToProps = (state) => ({ energy: state.energy });
+export default connect(mapStateToProps)(AppliancesComponent);

@@ -197,126 +197,91 @@ const evaluateReading = require('../middleware/thresholdEvaluator');
  */
 
 // ---------- POST /api/readings  (called by ESP32) ----------
+// Accepts EITHER:
+//   Single sensor: { deviceId, voltage, current, power }
+//   Dual sensor:   { deviceId, sensor1, sensor2, voltage }
 router.post('/', async (req, res) => {
   try {
-    console.log('📡 Received POST request from ESP32');
-    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('📡 Received POST /api/readings');
+    console.log('Body:', JSON.stringify(req.body, null, 2));
 
     const {
-      deviceId,
+      deviceId = 'esp32-1',
       sensor1,
       sensor2,
       voltage: voltageFromBody,
+      current: currentFromBody,
+      power: powerFromBody,
       loadNames,
       appliance,
-      location
+      location,
+      relay1,
+      relay2,
+      loadDetected
     } = req.body;
 
-    // Basic validation
-    if (deviceId == null || sensor1 == null || sensor2 == null) {
-      return res.status(400).json({
-        success: false,
-        message: 'deviceId, sensor1 and sensor2 are required',
-        receivedBody: req.body
-      });
-    }
-
-    // Use provided voltage or default 230V
-    const voltage = voltageFromBody ? Number(voltageFromBody) : 230;
-
-    // Parse currents as numbers
-    const current1 = Math.abs(Number(sensor1));
-    const current2 = Math.abs(Number(sensor2));
-
-    if (Number.isNaN(current1) || Number.isNaN(current2)) {
-      return res.status(400).json({
-        success: false,
-        message: 'sensor1 and sensor2 must be numeric',
-        receivedBody: req.body
-      });
-    }
-
-    // Optional custom names from ESP (array like ["Fan", "Light"])
-    const loadName1 =
-      loadNames && Array.isArray(loadNames) && loadNames[0]
-        ? loadNames[0]
-        : 'Load 1';
-    const loadName2 =
-      loadNames && Array.isArray(loadNames) && loadNames[1]
-        ? loadNames[1]
-        : 'Load 2';
-
-    // Common optional fields
+    const voltage = voltageFromBody != null ? Number(voltageFromBody) : 230;
     const applianceType = appliance || 'All';
     const place = location || 'Home';
 
-    // Build documents: one per sensor
     const docsToInsert = [];
 
-    // Load1 from sensor1
-    if (current1 > 0 || current1 === 0) {
-      const power1 = voltage * current1; // W
-      docsToInsert.push({
-        deviceId,
-        voltage,
-        current: current1,
-        power: power1,
-        // energy will be computed in pre-save hook
-        loadId: 'Load1',
-        loadName: loadName1,
-        appliance: applianceType,
-        location: place,
-        timestamp: new Date()
-      });
-    }
+    // ── Dual-sensor format (sensor1 + sensor2) ──────────────────
+    if (sensor1 != null && sensor2 != null) {
+      const c1 = Math.abs(Number(sensor1));
+      const c2 = Math.abs(Number(sensor2));
+      const name1 = (loadNames && loadNames[0]) || 'Load 1';
+      const name2 = (loadNames && loadNames[1]) || 'Load 2';
 
-    // Load2 from sensor2
-    if (current2 > 0 || current2 === 0) {
-      const power2 = voltage * current2; // W
       docsToInsert.push({
-        deviceId,
-        voltage,
-        current: current2,
-        power: power2,
-        loadId: 'Load2',
-        loadName: loadName2,
-        appliance: applianceType,
-        location: place,
-        timestamp: new Date()
+        deviceId, voltage, current: c1, power: voltage * c1,
+        loadId: 'Load1', loadName: name1,
+        appliance: applianceType, location: place, timestamp: new Date()
       });
-    }
+      docsToInsert.push({
+        deviceId, voltage, current: c2, power: voltage * c2,
+        loadId: 'Load2', loadName: name2,
+        appliance: applianceType, location: place, timestamp: new Date()
+      });
 
-    if (docsToInsert.length === 0) {
+    // ── Single-sensor format (voltage + current) ─────────────────
+    } else if (currentFromBody != null) {
+      const c = Math.abs(Number(currentFromBody));
+      const p = powerFromBody != null ? Number(powerFromBody) : voltage * c;
+
+      docsToInsert.push({
+        deviceId, voltage, current: c, power: p,
+        loadId: 'Load1', loadName: 'Load 1',
+        appliance: applianceType, location: place, timestamp: new Date(),
+        loadDetected: loadDetected || false
+      });
+
+    } else {
       return res.status(400).json({
         success: false,
-        message: 'No valid sensor readings found to save'
+        message: 'Provide either (sensor1 + sensor2) or (current) in the payload'
       });
     }
 
-    const savedDocs = await Reading.insertMany(docsToInsert);
+    const saved = await Reading.insertMany(docsToInsert);
+    console.log(`✅ Saved ${saved.length} reading(s) from ${deviceId}`);
 
-    console.log(`✅ Saved ${savedDocs.length} readings from ${deviceId}`);
-
-    // Run threshold evaluation on the first saved doc (representative)
-    if (savedDocs.length > 0) {
-      evaluateReading(savedDocs[0]).catch(e => console.error('Threshold eval error:', e.message));
+    // Threshold evaluation (non-blocking)
+    if (saved.length > 0) {
+      evaluateReading(saved[0]).catch(e =>
+        console.error('Threshold eval error:', e.message)
+      );
     }
 
     res.status(201).json({
       success: true,
       message: 'Readings saved successfully',
-      count: savedDocs.length,
-      readings: savedDocs.map(d =>
-        typeof d.toFrontend === 'function' ? d.toFrontend() : d
-      )
+      count: saved.length,
+      readings: saved.map(d => (typeof d.toFrontend === 'function' ? d.toFrontend() : d))
     });
   } catch (err) {
     console.error('❌ Error saving readings:', err);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error while saving readings',
-      error: err.message
-    });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

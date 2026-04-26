@@ -1,7 +1,6 @@
 import React from 'react';
 import { connect } from 'react-redux';
 import ReactFC from 'react-fusioncharts';
-import EnergyAPI from '../services/api';
 
 class UsageComponentImproved extends React.Component {
     constructor(props) {

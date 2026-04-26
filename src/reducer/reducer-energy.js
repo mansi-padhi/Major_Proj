@@ -12,7 +12,7 @@ import {
 const initialState = {
   loading: false,
   error: null,
-  period: 'month', // default period
+  period: 'today', // default period
   dashboard: {
     today: {},
     month: {},
