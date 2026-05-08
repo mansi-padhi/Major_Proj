@@ -9,8 +9,12 @@ import theme from 'fusioncharts/themes/fusioncharts.theme.ocean';
 
 // Import components
 import DashboardComponent from '../components/dashboard_component';
+import DashboardMonthComponent from '../components/dashboard_month_component';
+import DashboardYearComponent from '../components/dashboard_year_component';
 import CostComponentImproved from '../components/cost_component_improved';
 import AppliancesComponentImproved from '../components/appliances_component_improved';
+import AppliancesMonthComponent from '../components/appliances_month_component';
+import AppliancesYearComponent from '../components/appliances_year_component';
 import UsageComponentImproved from '../components/usage_component_improved';
 import SafetyComponent from '../components/safety_component';
 import AIAssistantComponent from '../components/ai_assistant_component';
@@ -61,21 +65,34 @@ class ChartDetail extends Component {
         const { energy } = this.props;
         const period = (energy && energy.period) || 'month';
 
-        // Today tab: show the two new clean charts
+        // Render appropriate dashboard based on selected period
         if (period === 'today') {
             return <DashboardComponent />;
+        } else if (period === 'month') {
+            return <DashboardMonthComponent />;
+        } else if (period === 'year') {
+            return <DashboardYearComponent />;
         }
 
-        // Month / Year tabs: placeholder until we build those views
-        return (
-            <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                height: '300px', color: '#AAAAAA', fontSize: '16px',
-                backgroundColor: '#1e1e2e', borderRadius: '8px', margin: '20px 0'
-            }}>
-                {period === 'month' ? 'Monthly view coming soon' : 'Yearly view coming soon'}
-            </div>
-        );
+        // Default to today view
+        return <DashboardComponent />;
+    }
+
+    renderAppliances() {
+        const { energy } = this.props;
+        const period = (energy && energy.period) || 'today';
+
+        // Render appropriate appliances view based on selected period
+        if (period === 'today') {
+            return <AppliancesComponentImproved />;
+        } else if (period === 'month') {
+            return <AppliancesMonthComponent />;
+        } else if (period === 'year') {
+            return <AppliancesYearComponent />;
+        }
+
+        // Default to today view
+        return <AppliancesComponentImproved />;
     }
 
     render() {
@@ -89,7 +106,7 @@ class ChartDetail extends Component {
             <div>
                 {userId === 1 && this.renderDashboard()}
                 {userId === 2 && <CostComponentImproved />}
-                {userId === 3 && <AppliancesComponentImproved />}
+                {userId === 3 && this.renderAppliances()}
                 {userId === 4 && <AIAssistantComponent />}
                 {userId === 5 && <SafetyComponent />}
             </div>

@@ -8,13 +8,16 @@ router.get('/summary', async (req, res) => {
     const { deviceId } = req.query;
     const now = new Date();
 
-    // Today's data
-    const startOfToday = new Date(now.setHours(0, 0, 0, 0));
+    // Today's data (create fresh Date object)
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
     const todayQuery = { timestamp: { $gte: startOfToday } };
     if (deviceId) todayQuery.deviceId = deviceId;
 
-    // This month's data
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    // This month's data (create fresh Date object)
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
     const monthQuery = { timestamp: { $gte: startOfMonth } };
     if (deviceId) monthQuery.deviceId = deviceId;
 
@@ -209,3 +212,151 @@ router.get('/realtime', async (req, res) => {
 });
 
 module.exports = router;
+
+
+// GET /api/dashboard/month — daily kWh breakdown for month tab
+router.get('/month', async (req, res) => {
+  try {
+    const { deviceId } = req.query;
+    const now = new Date();
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const matchStage = { timestamp: { $gte: startOfMonth } };
+    if (deviceId) matchStage.deviceId = deviceId;
+
+    // Daily energy aggregation
+    const dailyRaw = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: { $dayOfMonth: '$timestamp' },
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          maxPower: { $max: '$power' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const RATE = 8.0; // ₹8 per kWh
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+
+    // Fill all days of month
+    const daily = Array.from({ length: daysInMonth }, (_, i) => {
+      const day = i + 1;
+      const found = dailyRaw.find(r => r._id === day);
+      return {
+        day,
+        label: `Day ${day}`,
+        energyKwh: found ? parseFloat(found.totalEnergy.toFixed(8)) : 0,
+        costINR: found ? parseFloat((found.totalEnergy * RATE).toFixed(4)) : 0,
+        avgPowerW: found ? parseFloat(found.avgPower.toFixed(1)) : 0
+      };
+    });
+
+    // Month totals
+    const monthTotals = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          maxPower: { $max: '$power' }
+        }
+      }
+    ]);
+
+    const totals = monthTotals[0] || { totalEnergy: 0, avgPower: 0, maxPower: 0 };
+
+    res.json({
+      success: true,
+      daily,
+      totals: {
+        energyKwh: parseFloat(totals.totalEnergy.toFixed(8)),
+        costINR: parseFloat((totals.totalEnergy * RATE).toFixed(4)),
+        avgPowerW: parseFloat(totals.avgPower.toFixed(1)),
+        maxPowerW: parseFloat(totals.maxPower.toFixed(1))
+      },
+      rate: RATE,
+      month: now.getMonth() + 1,
+      year: now.getFullYear()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/dashboard/year — monthly kWh breakdown for year tab
+router.get('/year', async (req, res) => {
+  try {
+    const { deviceId } = req.query;
+    const now = new Date();
+    const startOfYear = new Date(now.getFullYear(), 0, 1);
+
+    const matchStage = { timestamp: { $gte: startOfYear } };
+    if (deviceId) matchStage.deviceId = deviceId;
+
+    // Monthly energy aggregation
+    const monthlyRaw = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: { $month: '$timestamp' },
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          maxPower: { $max: '$power' }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    const RATE = 8.0; // ₹8 per kWh
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Fill all 12 months
+    const monthly = Array.from({ length: 12 }, (_, i) => {
+      const month = i + 1;
+      const found = monthlyRaw.find(r => r._id === month);
+      return {
+        month,
+        label: monthNames[i],
+        energyKwh: found ? parseFloat(found.totalEnergy.toFixed(8)) : 0,
+        costINR: found ? parseFloat((found.totalEnergy * RATE).toFixed(4)) : 0,
+        avgPowerW: found ? parseFloat(found.avgPower.toFixed(1)) : 0
+      };
+    });
+
+    // Year totals
+    const yearTotals = await Reading.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          totalEnergy: { $sum: '$energy' },
+          avgPower: { $avg: '$power' },
+          maxPower: { $max: '$power' }
+        }
+      }
+    ]);
+
+    const totals = yearTotals[0] || { totalEnergy: 0, avgPower: 0, maxPower: 0 };
+
+    res.json({
+      success: true,
+      monthly,
+      totals: {
+        energyKwh: parseFloat(totals.totalEnergy.toFixed(8)),
+        costINR: parseFloat((totals.totalEnergy * RATE).toFixed(4)),
+        avgPowerW: parseFloat(totals.avgPower.toFixed(1)),
+        maxPowerW: parseFloat(totals.maxPower.toFixed(1))
+      },
+      rate: RATE,
+      year: now.getFullYear()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});

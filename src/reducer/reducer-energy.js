@@ -88,7 +88,11 @@ export default function(state = initialState, action) {
         ...state,
         cost: {
           ...state.cost,
-          [action.payload.period]: action.payload.data
+          [action.payload.period]: {
+            data: action.payload.data,
+            prediction: action.payload.prediction,
+            comparison: action.payload.comparison
+          }
         }
       };
 

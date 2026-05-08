@@ -2,11 +2,11 @@ const express = require('express');
 const router  = express.Router();
 const gemini  = require('../services/geminiService');
 
-// POST /api/ai/report — generate 5 insight cards (cached 6h)
+// POST /api/ai/report — generate 5 insight cards (REAL-TIME, NO CACHING)
 router.post('/report', async (req, res) => {
     try {
-        const { deviceId = 'esp32-1' } = req.body;
-        const result = await gemini.generateDetailedReport(deviceId);
+        const { deviceId = 'esp32-1', period = 'today' } = req.body;
+        const result = await gemini.generateDetailedReport(deviceId, period);
         res.json({ success: true, ...result });
     } catch (error) {
         if (error.message.includes('Rate limit'))
@@ -37,8 +37,8 @@ router.post('/chat', async (req, res) => {
 // GET /api/ai/context — debug: see what data gets sent to Gemini
 router.get('/context', async (req, res) => {
     try {
-        const { deviceId = 'esp32-1' } = req.query;
-        const context = await gemini.buildComprehensiveContext(deviceId);
+        const { deviceId = 'esp32-1', period = 'today' } = req.query;
+        const context = await gemini.buildComprehensiveContext(deviceId, period);
         res.json({ success: true, context });
     } catch (error) {
         res.status(500).json({ success: false, error: error.message });

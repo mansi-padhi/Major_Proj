@@ -1,4 +1,5 @@
 import React from 'react';
+import { connect } from 'react-redux';
 
 const API = 'http://localhost:5000/api';
 
@@ -19,8 +20,6 @@ class AIAssistantComponent extends React.Component {
       insights:     [],
       reportLoading: false,
       reportError:  null,
-      fromCache:    false,
-      cachedAt:     null,
       // Chat tab
       messages: [{
         id: 1, role: 'bot',
@@ -50,19 +49,23 @@ class AIAssistantComponent extends React.Component {
   // ── Report ────────────────────────────────────────────────────────────────
 
   async generateReport() {
+    const { energy } = this.props;
+    const period = (energy && energy.period) || 'today';
+    
     this.setState({ reportLoading: true, reportError: null });
     try {
       const res  = await fetch(`${API}/ai/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId: 'esp32-1' })
+        body: JSON.stringify({ 
+          deviceId: 'esp32-1',
+          period: period  // Send selected period to backend
+        })
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Failed to generate report');
       this.setState({
-        insights:  Array.isArray(data.insights) ? data.insights : [],
-        fromCache: data.fromCache || false,
-        cachedAt:  data.cachedAt  || null
+        insights:  Array.isArray(data.insights) ? data.insights : []
       });
     } catch (e) {
       this.setState({ reportError: e.message });
@@ -128,7 +131,17 @@ class AIAssistantComponent extends React.Component {
   // ── Render ────────────────────────────────────────────────────────────────
 
   renderReportTab() {
-    const { insights, reportLoading, reportError, fromCache, cachedAt } = this.state;
+    const { insights, reportLoading, reportError } = this.state;
+    const { energy } = this.props;
+    const period = (energy && energy.period) || 'today';
+    
+    // Get period label
+    const periodLabels = {
+      today: 'Today',
+      month: 'This Month',
+      year: 'This Year'
+    };
+    const periodLabel = periodLabels[period] || 'Today';
 
     return (
       <div style={styles.tabContent}>
@@ -136,7 +149,7 @@ class AIAssistantComponent extends React.Component {
           <div>
             <div style={styles.reportTitle}>AI Energy Report</div>
             <div style={styles.reportSubtitle}>
-              Powered by Gemini · Analyses your last 30 days of data
+              Powered by Gemini · Analyses your {periodLabel.toLowerCase()} data in real-time
             </div>
           </div>
           <button
@@ -144,15 +157,9 @@ class AIAssistantComponent extends React.Component {
             disabled={reportLoading}
             style={{ ...styles.generateBtn, opacity: reportLoading ? 0.6 : 1 }}
           >
-            {reportLoading ? '⏳ Analysing...' : '✨ Generate Report'}
+            {reportLoading ? '⏳ Analysing...' : `✨ Generate Report (${periodLabel})`}
           </button>
         </div>
-
-        {fromCache && cachedAt && (
-          <div style={styles.cacheNote}>
-            ⚡ Cached report from {new Date(cachedAt).toLocaleTimeString()} · refreshes every 6h
-          </div>
-        )}
 
         {reportError && (
           <div style={styles.errorBox}>
@@ -169,7 +176,7 @@ class AIAssistantComponent extends React.Component {
           <div style={styles.loadingBox}>
             <div style={styles.spinner} />
             <div style={{ color: '#AAAAAA', marginTop: '12px' }}>
-              Analysing your energy data...
+              Analysing your {periodLabel.toLowerCase()} energy data...
             </div>
           </div>
         )}
@@ -178,7 +185,7 @@ class AIAssistantComponent extends React.Component {
           <div style={styles.emptyState}>
             <div style={{ fontSize: '48px', marginBottom: '12px' }}>🤖</div>
             <div style={{ color: '#AAAAAA', fontSize: '15px' }}>
-              Click "Generate Report" to get AI-powered insights about your energy usage.
+              Click "Generate Report" to get AI-powered insights about your energy usage for {periodLabel.toLowerCase()}.
             </div>
           </div>
         )}
@@ -207,6 +214,9 @@ class AIAssistantComponent extends React.Component {
 
     return (
       <div style={styles.chatContainer}>
+        <div style={styles.chatInfo}>
+          💬 Ask me about any time period — I'll detect it from your question!
+        </div>
         <div style={styles.messageList}>
           {messages.map(msg => (
             <div key={msg.id} style={{
@@ -256,7 +266,7 @@ class AIAssistantComponent extends React.Component {
         </div>
 
         <div style={styles.chatHints}>
-          Try: "What was my peak power today?" · "Which load uses more energy?" · "How much did I spend this week?"
+          Try: "What was my peak power yesterday?" · "How much did I spend this week?" · "Which load uses more energy this month?"
         </div>
       </div>
     );
@@ -310,10 +320,6 @@ const styles = {
     border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '700',
     cursor: 'pointer', transition: 'opacity 0.2s', whiteSpace: 'nowrap'
   },
-  cacheNote: {
-    fontSize: '12px', color: '#666677', marginBottom: '16px',
-    backgroundColor: '#1e1e2e', padding: '8px 12px', borderRadius: '6px'
-  },
   errorBox: {
     backgroundColor: 'rgba(255,61,0,0.12)', border: '1px solid #FF3D00',
     borderRadius: '8px', padding: '14px', marginBottom: '16px', color: '#FF3D00', fontSize: '14px'
@@ -344,6 +350,10 @@ const styles = {
   chatContainer: {
     display: 'flex', flexDirection: 'column',
     height: '520px', backgroundColor: '#1e1e2e', borderRadius: '8px', overflow: 'hidden'
+  },
+  chatInfo: {
+    padding: '10px 16px', backgroundColor: '#2a2a3a', borderBottom: '1px solid #3a3a4a',
+    fontSize: '12px', color: '#00D4FF', textAlign: 'center'
   },
   messageList: {
     flex: 1, overflowY: 'auto', padding: '16px',
@@ -376,4 +386,6 @@ const styles = {
   }
 };
 
-export default AIAssistantComponent;
+// Map Redux state to props
+const mapStateToProps = (state) => ({ energy: state.energy });
+export default connect(mapStateToProps)(AIAssistantComponent);

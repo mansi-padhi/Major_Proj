@@ -73,7 +73,7 @@ router.get('/', async (req, res) => {
     }
 
     const data = result[0];
-    const totalCost = 0.5 * costRate;
+    const totalCost = data.totalEnergy * costRate;
 
     // Get detailed breakdown for chart
     let detailedData = [];

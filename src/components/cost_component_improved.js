@@ -33,13 +33,16 @@ class CostComponentImproved extends React.Component {
 
     getCostChartConfig() {
         const { energy } = this.props;
+        const { compareMode } = this.state;
         const period = (energy && energy.period) || 'month';
         const costData = energy && energy.cost && energy.cost[period];
 
+        console.log('Chart Config Debug:', { period, costData, compareMode });
+
         // Show empty chart if no data from MongoDB
-        if (!costData || !costData.data || costData.data.length === 0) {
+        if (!costData || !costData.data || !costData.data.data || costData.data.data.length === 0) {
             return {
-                type: 'msline',
+                type: 'line',
                 width: '100%',
                 height: '400',
                 dataFormat: 'json',
@@ -60,10 +63,53 @@ class CostComponentImproved extends React.Component {
             };
         }
 
-        // Transform data for chart
+        const xAxisName = period === 'today' ? 'Hour' : period === 'month' ? 'Day' : 'Month';
+        const labels = this.getPeriodLabel();
+
+        // If compareMode is true, show comparison chart
+        if (compareMode && costData.comparison) {
+            const currentCost = costData.data.totalCost || 0;
+            const previousCost = (costData.comparison.previous && costData.comparison.previous.cost) || 0;
+
+            return {
+                type: 'column2d',
+                width: '100%',
+                height: '400',
+                dataFormat: 'json',
+                dataSource: {
+                    chart: {
+                        caption: 'Cost Comparison',
+                        subCaption: `${labels.current} vs ${labels.previous}`,
+                        xAxisName: 'Period',
+                        yAxisName: 'Cost (₹)',
+                        numberPrefix: '₹',
+                        theme: 'ocean',
+                        bgColor: '#1e1e2e',
+                        canvasBgColor: '#1e1e2e',
+                        baseFontColor: '#FDFDFD',
+                        showValues: '1',
+                        paletteColors: '#00D4FF,#FFA500',
+                        divLineColor: '#3a3a4a',
+                        divLineAlpha: '50'
+                    },
+                    data: [
+                        {
+                            label: labels.previous,
+                            value: previousCost.toFixed(2)
+                        },
+                        {
+                            label: labels.current,
+                            value: currentCost.toFixed(2)
+                        }
+                    ]
+                }
+            };
+        }
+
+        // Default: show current period detailed chart
         const chartData = [];
-        if (costData.data && Array.isArray(costData.data)) {
-            costData.data.forEach(item => {
+        if (costData.data.data && Array.isArray(costData.data.data)) {
+            costData.data.data.forEach(item => {
                 chartData.push({
                     label: item.label || item.date || item.hour || '',
                     value: parseFloat(item.cost || 0).toFixed(2)
@@ -71,17 +117,18 @@ class CostComponentImproved extends React.Component {
             });
         }
 
-        const xAxisName = period === 'today' ? 'Hour' : period === 'month' ? 'Day' : 'Month';
-        const totalCost = costData.totalCost || 0;
+        const totalCost = costData.data.totalCost || 0;
+
+        console.log('Chart Data:', { chartData, totalCost });
 
         return {
-            type: 'msline',
+            type: 'line',
             width: '100%',
             height: '400',
             dataFormat: 'json',
             dataSource: {
                 chart: {
-                    caption: `Energy Cost - ${period.charAt(0).toUpperCase() + period.slice(1)}`,
+                    caption: `Energy Cost - ${labels.current}`,
                     subCaption: `Total: ₹${totalCost.toFixed(2)} | Rate: ₹7/kWh`,
                     xAxisName: xAxisName,
                     yAxisName: 'Cost (₹)',
@@ -109,6 +156,15 @@ class CostComponentImproved extends React.Component {
         const period = (energy && energy.period) || 'month';
         const costData = energy && energy.cost && energy.cost[period];
 
+        console.log('Cost Stats Debug:', {
+            period,
+            costData,
+            hasCostData: !!costData,
+            hasData: !!(costData && costData.data),
+            hasPrediction: !!(costData && costData.prediction),
+            hasComparison: !!(costData && costData.comparison)
+        });
+
         if (!costData) {
             return {
                 current: 0,
@@ -118,11 +174,19 @@ class CostComponentImproved extends React.Component {
             };
         }
 
+        // Use data from all three endpoints
+        const current = (costData.data && costData.data.totalCost) || 0;
+        const previous = (costData.comparison && costData.comparison.previous && costData.comparison.previous.cost) || 0;
+        const predicted = (costData.prediction && costData.prediction.predictedCost) || 0;
+        const savings = previous - current;
+
+        console.log('Calculated Stats:', { current, previous, predicted, savings });
+
         return {
-            current: costData.totalCost || 0,
-            previous: costData.previousCost || 0,
-            predicted: costData.predictedCost || 0,
-            savings: (costData.previousCost || 0) - (costData.totalCost || 0)
+            current,
+            previous,
+            predicted,
+            savings
         };
     }
 
@@ -233,7 +297,7 @@ class CostComponentImproved extends React.Component {
                                             Energy Consumed
                                         </div>
                                         <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#00D4FF' }}>
-                                            {((stats.current / 7) || 0).toFixed(2)} kWh
+                                            {((stats.current / 7) || 0).toFixed(4)} kWh
                                         </div>
                                     </div>
                                     <div className="col-md-4" style={{ marginBottom: '15px' }}>

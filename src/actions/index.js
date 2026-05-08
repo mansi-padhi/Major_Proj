@@ -83,10 +83,21 @@ export const fetchReadings = (period = 'today') => {
 export const fetchCost = (period = 'today') => {
     return async (dispatch) => {
         try {
-            const data = await EnergyAPI.getCost(period);
+            // Fetch all three endpoints for complete cost analysis
+            const [costData, prediction, comparison] = await Promise.all([
+                EnergyAPI.getCost(period),
+                EnergyAPI.getCostPrediction(period),
+                EnergyAPI.getCostComparison(period)
+            ]);
+            
             dispatch({
                 type: FETCH_COST_SUCCESS,
-                payload: { period, data }
+                payload: { 
+                    period, 
+                    data: costData,
+                    prediction,
+                    comparison
+                }
             });
         } catch (error) {
             console.error('Error fetching cost:', error);
