@@ -8,15 +8,20 @@ const Threshold = require('../models/Threshold');
 router.get('/status', async (req, res) => {
     try {
         const { deviceId = 'esp32-1' } = req.query;
-        const latest = await Reading.findOne({ deviceId }).sort({ timestamp: -1 });
+
+        // Get latest reading for each load separately
+        const latestLoad1 = await Reading.findOne({ deviceId, loadId: 'Load1' }).sort({ timestamp: -1 });
+        const latestLoad2 = await Reading.findOne({ deviceId, loadId: 'Load2' }).sort({ timestamp: -1 });
+
+        // Use Load1 as the primary reading (carries safety sensor data)
+        const latest = latestLoad1 || latestLoad2;
 
         if (!latest) {
             return res.json({ success: true, status: 'no_data', sensors: {} });
         }
 
-        const thresholds = await Threshold.findOne({ deviceId: 'default' }) || await getDefaultThresholds();
-
-        const sensors = evaluateSeverity(latest, thresholds);
+        const thresholds = await Threshold.findOne({ deviceId: 'default' }) || getDefaultThresholds();
+        const sensors = evaluateSeverity(latest, thresholds, latestLoad2);
         const overallSeverity = getOverallSeverity(sensors);
 
         res.json({
@@ -26,12 +31,12 @@ router.get('/status', async (req, res) => {
             overallSeverity,
             sensors,
             raw: {
-                voltage: latest.voltage,
-                current: latest.current,
-                temperature: latest.temperature,
-                humidity: latest.humidity,
-                smokeLevel: latest.smokeLevel,
-                motionDetected: latest.motionDetected
+                voltage:        latest.voltage,
+                currentLoad1:   latestLoad1 ? latestLoad1.current : null,
+                currentLoad2:   latestLoad2 ? latestLoad2.current : null,
+                temperature:    latest.temperature,
+                humidity:       latest.humidity,
+                smokeLevel:     latest.smokeLevel
             }
         });
     } catch (error) {
@@ -99,7 +104,7 @@ router.post('/thresholds', async (req, res) => {
 });
 
 // Helper: evaluate severity for each sensor
-function evaluateSeverity(reading, thresholds) {
+function evaluateSeverity(reading, thresholds, load2Reading) {
     const sensors = {};
 
     // Voltage
@@ -112,14 +117,26 @@ function evaluateSeverity(reading, thresholds) {
         sensors.voltage = { value: v, severity: 'normal', unit: 'V' };
     }
 
-    // Current
-    const c = reading.current;
-    if (c > thresholds.current.critMax) {
-        sensors.current = { value: c, severity: 'critical', unit: 'A' };
-    } else if (c > thresholds.current.warnMax) {
-        sensors.current = { value: c, severity: 'warning', unit: 'A' };
+    // Current Load 1
+    const c1 = reading.current;
+    if (c1 > thresholds.current.critMax) {
+        sensors.currentLoad1 = { value: c1, severity: 'critical', unit: 'A' };
+    } else if (c1 > thresholds.current.warnMax) {
+        sensors.currentLoad1 = { value: c1, severity: 'warning', unit: 'A' };
     } else {
-        sensors.current = { value: c, severity: 'normal', unit: 'A' };
+        sensors.currentLoad1 = { value: c1, severity: 'normal', unit: 'A' };
+    }
+
+    // Current Load 2
+    if (load2Reading) {
+        const c2 = load2Reading.current;
+        if (c2 > thresholds.current.critMax) {
+            sensors.currentLoad2 = { value: c2, severity: 'critical', unit: 'A' };
+        } else if (c2 > thresholds.current.warnMax) {
+            sensors.currentLoad2 = { value: c2, severity: 'warning', unit: 'A' };
+        } else {
+            sensors.currentLoad2 = { value: c2, severity: 'normal', unit: 'A' };
+        }
     }
 
     // Temperature
@@ -146,11 +163,6 @@ function evaluateSeverity(reading, thresholds) {
         }
     }
 
-    // Motion
-    if (reading.motionDetected != null) {
-        sensors.motion = { value: reading.motionDetected, severity: 'info', unit: '' };
-    }
-
     return sensors;
 }
 
@@ -164,7 +176,7 @@ function getOverallSeverity(sensors) {
 function getDefaultThresholds() {
     return {
         voltage: { warnMin: 210, warnMax: 250, critMin: 190, critMax: 260 },
-        current: { warnMax: 8, critMax: 12 },
+        current: { warnMax: 8, critMax: 40 },
         temperature: { warnMax: 40, critMax: 55 },
         smoke: { warnMax: 300, critMax: 500 }
     };

@@ -30,9 +30,9 @@ async function evaluateReading(reading) {
         // Current check
         const c = reading.current;
         if (c > thresholds.current.critMax) {
-            checks.push({ type: 'current', severity: 'critical', value: c, threshold: thresholds.current.critMax, unit: 'A' });
+            checks.push({ type: `current_${reading.loadId || 'Load1'}`, severity: 'critical', value: c, threshold: thresholds.current.critMax, unit: 'A' });
         } else if (c > thresholds.current.warnMax) {
-            checks.push({ type: 'current', severity: 'warning', value: c, threshold: thresholds.current.warnMax, unit: 'A' });
+            checks.push({ type: `current_${reading.loadId || 'Load1'}`, severity: 'warning', value: c, threshold: thresholds.current.warnMax, unit: 'A' });
         }
 
         // Temperature check

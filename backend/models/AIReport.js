@@ -2,7 +2,8 @@ const mongoose = require('mongoose');
 
 const aiReportSchema = new mongoose.Schema({
     deviceId: { type: String, default: 'default' },
-    insights: [{ title: String, body: String, type: String }],
+    insights: { type: mongoose.Schema.Types.Mixed }, // supports both array and object formats
+    source: { type: String, default: 'gemini' },
     generatedAt: { type: Date, default: Date.now }
 });
 

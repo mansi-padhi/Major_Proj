@@ -134,7 +134,10 @@ readingSchema.methods.toFrontend = function () {
     location: this.location,
     timestamp: this.timestamp,
     cost: this.cost,
-    loadDetected: this.loadDetected
+    loadDetected: this.loadDetected,
+    temperature: this.temperature,
+    humidity: this.humidity,
+    smokeLevel: this.smokeLevel
   };
 };
 

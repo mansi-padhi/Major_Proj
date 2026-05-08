@@ -217,7 +217,10 @@ router.post('/', async (req, res) => {
       location,
       relay1,
       relay2,
-      loadDetected
+      loadDetected,
+      temperature,
+      humidity,
+      smokeLevel
     } = req.body;
 
     const voltage = voltageFromBody != null ? Number(voltageFromBody) : 230;
@@ -233,15 +236,24 @@ router.post('/', async (req, res) => {
       const name1 = (loadNames && loadNames[0]) || 'Load 1';
       const name2 = (loadNames && loadNames[1]) || 'Load 2';
 
+      // Safety fields — shared across both loads (one set of sensors per device)
+      const safetyFields = {
+        temperature: temperature != null ? Number(temperature) : null,
+        humidity:    humidity    != null ? Number(humidity)    : null,
+        smokeLevel:  smokeLevel  != null ? Number(smokeLevel)  : null
+      };
+
       docsToInsert.push({
         deviceId, voltage, current: c1, power: voltage * c1,
         loadId: 'Load1', loadName: name1,
-        appliance: applianceType, location: place, timestamp: new Date()
+        appliance: applianceType, location: place, timestamp: new Date(),
+        ...safetyFields
       });
       docsToInsert.push({
         deviceId, voltage, current: c2, power: voltage * c2,
         loadId: 'Load2', loadName: name2,
-        appliance: applianceType, location: place, timestamp: new Date()
+        appliance: applianceType, location: place, timestamp: new Date(),
+        ...safetyFields
       });
 
     // ── Single-sensor format (voltage + current) ─────────────────
@@ -253,7 +265,10 @@ router.post('/', async (req, res) => {
         deviceId, voltage, current: c, power: p,
         loadId: 'Load1', loadName: 'Load 1',
         appliance: applianceType, location: place, timestamp: new Date(),
-        loadDetected: loadDetected || false
+        loadDetected: loadDetected || false,
+        temperature: temperature != null ? Number(temperature) : null,
+        humidity:    humidity    != null ? Number(humidity)    : null,
+        smokeLevel:  smokeLevel  != null ? Number(smokeLevel)  : null
       });
 
     } else {

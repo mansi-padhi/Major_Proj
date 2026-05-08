@@ -15,7 +15,11 @@ export default function () {
         },
         {
             id: 4,
-            name: "Usage-by-device"
+            name: "AI Assistant"
+        },
+        {
+            id: 5,
+            name: "Safety"
         }
     ]
 }

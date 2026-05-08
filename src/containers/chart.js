@@ -12,6 +12,8 @@ import DashboardComponent from '../components/dashboard_component';
 import CostComponentImproved from '../components/cost_component_improved';
 import AppliancesComponentImproved from '../components/appliances_component_improved';
 import UsageComponentImproved from '../components/usage_component_improved';
+import SafetyComponent from '../components/safety_component';
+import AIAssistantComponent from '../components/ai_assistant_component';
 
 charts(FusionCharts);
 widgets(FusionCharts);
@@ -36,7 +38,7 @@ class ChartDetail extends Component {
     }
 
     updateNavigation(activeId) {
-        const sections = ['Dashboard', 'Cost', 'Appliances', 'Usage-by-device'];
+        const sections = ['Dashboard', 'Cost', 'Appliances', 'Usage-by-device', 'Safety'];
         sections.forEach((section, index) => {
             const element = document.getElementById(section);
             if (element) {
@@ -88,7 +90,8 @@ class ChartDetail extends Component {
                 {userId === 1 && this.renderDashboard()}
                 {userId === 2 && <CostComponentImproved />}
                 {userId === 3 && <AppliancesComponentImproved />}
-                {userId === 4 && <UsageComponentImproved />}
+                {userId === 4 && <AIAssistantComponent />}
+                {userId === 5 && <SafetyComponent />}
             </div>
         );
     }
