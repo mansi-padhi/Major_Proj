@@ -1,248 +1,290 @@
-/*
- * IoT Energy Monitoring System - ESP32 Firmware (DUAL SENSOR)
- * 
- * Hardware Requirements:
- * - ESP32 Development Board
- * - 2x ACS712 Current Sensors (30A version)
- * - ZMPT101B Voltage Sensor (optional)
- * 
- * Pin Connections:
- * - ACS712 #1 (Load 1) OUT -> GPIO 34 (ADC1_CH6)
- * - ACS712 #2 (Load 2) OUT -> GPIO 35 (ADC1_CH7)
- * - ZMPT101B OUT -> GPIO 32 (optional)
- * - All sensors VCC -> 3.3V or 5V
- * - All sensors GND -> GND
+/**
+ * Smart Power Management System — Full Production Firmware
+ *
+ * Sensors:
+ *  - ACS712 #1  (Load 1 current)   → GPIO 35  (ADC1_CH7)
+ *  - ACS712 #2  (Load 2 current)   → GPIO 34  (ADC1_CH6)
+ *  - ZMPT101B   (mains voltage)    → GPIO 33  (ADC1_CH5)
+ *  - DHT22      (temp + humidity)  → GPIO 4   (digital)
+ *  - MQ-2       (smoke/gas)        → GPIO 32  (ADC1_CH4)
+ *
+ * Relays (active LOW — LOW = ON):
+ *  - Relay 1    (Load 1)           → GPIO 26
+ *  - Relay 2    (Load 2)           → GPIO 27
+ *
+ * POST payload every 5 s:
+ *  { deviceId, sensor1, sensor2, voltage,
+ *    temperature, humidity, smokeLevel,
+ *    relay1, relay2 }
+ *
+ * Relay poll every 2 s:
+ *  GET /api/relays?deviceId=esp32-1
  */
 
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <DHT.h>
 
-// ===== WiFi Configuration =====
-const char* WIFI_SSID = "YOUR_WIFI_SSID";           // ← Change this to your WiFi name
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";   // ← Change this to your WiFi password
+// ===== WiFi =====
+const char* WIFI_SSID     = "Galaxy M31s4140";
+const char* WIFI_PASSWORD = "pfug8318";
 
-// ===== Server Configuration =====
-const char* SERVER_URL = "http://192.168.1.100:5000/api/readings";  // ← Change to your laptop's IP
-const char* DEVICE_ID = "esp32-1";
+// ===== Server =====
+const char* SERVER_URL = "http://10.105.78.155:5000/api/readings";
+const char* RELAY_URL  = "http://10.105.78.155:5000/api/relays?deviceId=esp32-1";
+const char* DEVICE_ID  = "esp32-1";
 
-// ===== Pin Configuration =====
-const int CURRENT_PIN_1 = 34;  // ACS712 #1 (Load 1)
-const int CURRENT_PIN_2 = 35;  // ACS712 #2 (Load 2)
-const int VOLTAGE_PIN = 32;    // ZMPT101B (optional)
+// ===== ADC Sensor Pins =====
+const int CURRENT1_PIN = 35;   // ACS712 Load 1
+const int CURRENT2_PIN = 34;   // ACS712 Load 2
+const int VOLTAGE_PIN  = 33;   // ZMPT101B
+const int MQ2_PIN      = 32;   // MQ-2 analog
 
-// ===== Calibration Constants =====
-// ACS712 30A: 66mV/A sensitivity
-const float CURRENT_OFFSET = 1.65;        // Half of 3.3V (sensor zero point)
-const float CURRENT_SENSITIVITY = 0.066;  // 66mV per Ampere
+// ===== DHT22 =====
+#define DHT_PIN  4
+#define DHT_TYPE DHT22
+DHT dht(DHT_PIN, DHT_TYPE);
 
-// ZMPT101B Voltage Sensor
-const float VOLTAGE_OFFSET = 1.65;
-const float VOLTAGE_MULTIPLIER = 180.0;   // Adjust based on your mains voltage (230V AC)
+// ===== Relay Pins (active LOW) =====
+const int RELAY1_PIN = 26;
+const int RELAY2_PIN = 27;
 
-// ===== Measurement Configuration =====
-const int SAMPLES = 1000;           // Number of samples for RMS calculation
-const int SAMPLE_DELAY_US = 100;    // Delay between samples (microseconds)
-const int SEND_INTERVAL = 6000;     // Send data every 6 seconds
+// ===== ACS712 5A Config (FIXED) =====
+const float ACS712_SENSITIVITY  = 0.185;   // V/A — 5A module
+const float ADC_REF             = 3.3;
+const float ADC_MAX             = 4095.0;
+const int   SAMPLES             = 2000;
+const int   SAMPLE_DELAY_US     = 100;
+const float NOISE_FLOOR         = 0.02;    // A — below this → 0
 
-// ===== Global Variables =====
-unsigned long lastSendTime = 0;
-int sendCount = 0;
+// ===== ZMPT101B Config (FIXED) =====
+float VOLTAGE_MULTIPLIER  = 1800.0;  // Adjusted for ~225V (was 180)
+const float VOLTAGE_NOISE_FLOOR = 5.0;    // V
 
-// ================= SETUP =================
+// ===== Timing =====
+const unsigned long SENSOR_INTERVAL = 5000;   // ms
+const unsigned long RELAY_INTERVAL  = 2000;   // ms
+
+// ===== Runtime State =====
+float c1Offset = 2048.0;
+float c2Offset = 2048.0;
+float vOffset  = 2048.0;
+bool  relay1On = false;
+bool  relay2On = false;
+
+unsigned long lastSensorMs = 0;
+unsigned long lastRelayMs  = 0;
+
+// ============================================================
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  
-  Serial.println("\n\n========================================");
-  Serial.println("  IoT Energy Monitor - Dual Sensor");
-  Serial.println("========================================\n");
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
 
-  // Configure ADC
-  analogReadResolution(12);  // 12-bit resolution (0-4095)
-  analogSetAttenuation(ADC_11db);  // Full range 0-3.3V
+  // Safe relay init — HIGH = OFF before setting OUTPUT
+  digitalWrite(RELAY1_PIN, HIGH);
+  digitalWrite(RELAY2_PIN, HIGH);
+  pinMode(RELAY1_PIN, OUTPUT);
+  pinMode(RELAY2_PIN, OUTPUT);
 
-  // Connect to WiFi
+  dht.begin();
+
+  Serial.println("\n=== Smart Power Management System ===");
+  Serial.println("Calibrating ADC offsets (ensure no load connected)...");
+  delay(2000);
+
+  calibrateOffsets();
+  Serial.printf("  C1 offset: %.1f  C2 offset: %.1f  V offset: %.1f\n",
+                c1Offset, c2Offset, vOffset);
+
   connectWiFi();
-  
-  Serial.println("\n✓ System Ready!");
-  Serial.println("Starting measurements...\n");
+  Serial.println("System ready.\n");
 }
 
-// ================= MAIN LOOP =================
+// ============================================================
 void loop() {
-  // Check WiFi connection
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠ WiFi disconnected! Reconnecting...");
-    reconnectWiFi();
+  if (WiFi.status() != WL_CONNECTED) reconnectWiFi();
+
+  unsigned long now = millis();
+
+  // ── Relay poll (every 2 s) ──────────────────────────────────
+  if (now - lastRelayMs >= RELAY_INTERVAL) {
+    lastRelayMs = now;
+    pollRelays();
   }
 
-  // Send data at specified interval
-  if (millis() - lastSendTime >= SEND_INTERVAL) {
-    lastSendTime = millis();
-    sendCount++;
+  // ── Sensor read + POST (every 5 s) ─────────────────────────
+  if (now - lastSensorMs >= SENSOR_INTERVAL) {
+    lastSensorMs = now;
 
-    // Read sensors
-    float voltage = readVoltage();
-    float current1 = readCurrent(CURRENT_PIN_1);
-    float current2 = readCurrent(CURRENT_PIN_2);
+    float current1 = readCurrentRMS(CURRENT1_PIN, c1Offset);
+    float current2 = readCurrentRMS(CURRENT2_PIN, c2Offset);
+    float voltage  = readVoltageRMS();
 
-    // Calculate power
-    float power1 = voltage * current1;
-    float power2 = voltage * current2;
-    float totalPower = power1 + power2;
+    float temperature = dht.readTemperature();
+    float humidity    = dht.readHumidity();
+    int   smokeLevel  = analogRead(MQ2_PIN);
 
-    // Display readings
-    Serial.println("========================================");
-    Serial.printf("Reading #%d\n", sendCount);
-    Serial.println("========================================");
-    Serial.printf("Voltage:      %.2f V\n", voltage);
-    Serial.printf("Current L1:   %.3f A\n", current1);
-    Serial.printf("Current L2:   %.3f A\n", current2);
-    Serial.printf("Power L1:     %.2f W\n", power1);
-    Serial.printf("Power L2:     %.2f W\n", power2);
-    Serial.printf("Total Power:  %.2f W\n", totalPower);
-    Serial.println("----------------------------------------");
+    if (isnan(temperature)) temperature = -1;
+    if (isnan(humidity))    humidity    = -1;
 
-    // Send to server
-    sendData(voltage, current1, current2);
+    Serial.println("\n========== READINGS ==========");
+    Serial.printf("Voltage     : %.2f V\n",  voltage);
+    Serial.printf("Current 1   : %.3f A\n",  current1);
+    Serial.printf("Current 2   : %.3f A\n",  current2);
+    Serial.printf("Power 1     : %.2f W\n",  voltage * current1);
+    Serial.printf("Power 2     : %.2f W\n",  voltage * current2);
+    Serial.printf("Relay 1     : %s\n",      relay1On ? "ON" : "OFF");
+    Serial.printf("Relay 2     : %s\n",      relay2On ? "ON" : "OFF");
+    Serial.printf("Temperature : %.1f C\n",  temperature);
+    Serial.printf("Humidity    : %.1f %%\n", humidity);
+    Serial.printf("Smoke (ADC) : %d\n",      smokeLevel);
+    Serial.println("==============================");
+
+    sendReadings(voltage, current1, current2, temperature, humidity, smokeLevel);
   }
 }
 
-// ================= WiFi Functions =================
-void connectWiFi() {
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(WIFI_SSID);
-  
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+// ============================================================
+// RELAY POLL — GET /api/relays?deviceId=esp32-1
+// ============================================================
+void pollRelays() {
+  HTTPClient http;
+  http.begin(RELAY_URL);
+  http.setTimeout(3000);
 
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
-    delay(500);
-    Serial.print(".");
-    attempts++;
-  }
+  int code = http.GET();
+  if (code == 200) {
+    String body = http.getString();
+    StaticJsonDocument<512> doc;
 
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n✓ WiFi Connected!");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-    Serial.print("Signal Strength: ");
-    Serial.print(WiFi.RSSI());
-    Serial.println(" dBm");
+    if (!deserializeJson(doc, body) && doc["success"]) {
+      for (JsonObject r : doc["relays"].as<JsonArray>()) {
+        const char* ch     = r["channel"];
+        bool        wantOn = strcmp(r["state"], "on") == 0;
+
+        if (strcmp(ch, "load1") == 0 && wantOn != relay1On) {
+          relay1On = wantOn;
+          digitalWrite(RELAY1_PIN, wantOn ? LOW : HIGH);
+          Serial.printf("→ Relay 1 → %s\n", wantOn ? "ON" : "OFF");
+        }
+        if (strcmp(ch, "load2") == 0 && wantOn != relay2On) {
+          relay2On = wantOn;
+          digitalWrite(RELAY2_PIN, wantOn ? LOW : HIGH);
+          Serial.printf("→ Relay 2 → %s\n", wantOn ? "ON" : "OFF");
+        }
+      }
+    }
   } else {
-    Serial.println("\n✗ WiFi Connection Failed!");
-    Serial.println("Please check SSID and password");
+    Serial.printf("Relay poll HTTP %d\n", code);
   }
+  http.end();
 }
 
-void reconnectWiFi() {
-  WiFi.disconnect();
-  delay(1000);
-  connectWiFi();
-}
-
-// ================= Sensor Reading Functions =================
-
-// Read current from ACS712 sensor (RMS calculation)
-float readCurrent(int pin) {
-  float sumSquares = 0;
-  int validSamples = 0;
-
-  for (int i = 0; i < SAMPLES; i++) {
-    int rawValue = analogRead(pin);
-    float voltage = rawValue * (3.3 / 4095.0);  // Convert to voltage
-    float centered = voltage - CURRENT_OFFSET;   // Remove DC offset
-    sumSquares += centered * centered;
-    validSamples++;
-    delayMicroseconds(SAMPLE_DELAY_US);
-  }
-
-  // Calculate RMS voltage
-  float rmsVoltage = sqrt(sumSquares / validSamples);
-  
-  // Convert to current using sensor sensitivity
-  float current = rmsVoltage / CURRENT_SENSITIVITY;
-
-  // Noise filter - ignore very small currents
-  if (current < 0.05) {
-    current = 0.0;
-  }
-
-  return current;
-}
-
-// Read voltage from ZMPT101B sensor (RMS calculation)
-float readVoltage() {
-  float sumSquares = 0;
-  int validSamples = 0;
-
-  for (int i = 0; i < SAMPLES; i++) {
-    int rawValue = analogRead(VOLTAGE_PIN);
-    float voltage = rawValue * (3.3 / 4095.0);  // Convert to voltage
-    float centered = voltage - VOLTAGE_OFFSET;   // Remove DC offset
-    sumSquares += centered * centered;
-    validSamples++;
-    delayMicroseconds(SAMPLE_DELAY_US);
-  }
-
-  // Calculate RMS voltage
-  float rmsVoltage = sqrt(sumSquares / validSamples);
-  
-  // Scale to actual mains voltage
-  float mainsVoltage = rmsVoltage * VOLTAGE_MULTIPLIER;
-
-  // If voltage sensor not connected or reading is too low, use default 230V
-  if (mainsVoltage < 100 || mainsVoltage > 300) {
-    mainsVoltage = 230.0;  // Default to 230V AC
-  }
-
-  return mainsVoltage;
-}
-
-// ================= Data Transmission =================
-void sendData(float voltage, float current1, float current2) {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("✗ Cannot send - WiFi not connected");
-    return;
-  }
-
+// ============================================================
+// SENSOR POST — POST /api/readings
+// Payload: { deviceId, sensor1, sensor2, voltage,
+//            temperature, humidity, smokeLevel, relay1, relay2 }
+// ============================================================
+void sendReadings(float voltage, float c1, float c2,
+                  float temperature, float humidity, int smokeLevel) {
   HTTPClient http;
   http.begin(SERVER_URL);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(5000);  // 5 second timeout
+  http.setTimeout(5000);
 
-  // Create JSON payload
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<384> doc;
   doc["deviceId"] = DEVICE_ID;
-  doc["sensor1"] = round(current1 * 1000) / 1000.0;  // Load 1 current (3 decimals)
-  doc["sensor2"] = round(current2 * 1000) / 1000.0;  // Load 2 current (3 decimals)
-  doc["voltage"] = round(voltage * 10) / 10.0;       // Voltage (1 decimal)
+  doc["sensor1"]  = round(c1      * 1000) / 1000.0;
+  doc["sensor2"]  = round(c2      * 1000) / 1000.0;
+  doc["voltage"]  = round(voltage * 10)   / 10.0;
+  doc["relay1"]   = relay1On ? "on" : "off";
+  doc["relay2"]   = relay2On ? "on" : "off";
 
-  String jsonPayload;
-  serializeJson(doc, jsonPayload);
+  // Safety sensors — only include if valid
+  if (temperature >= 0) doc["temperature"] = round(temperature * 10) / 10.0;
+  if (humidity    >= 0) doc["humidity"]    = round(humidity    * 10) / 10.0;
+  doc["smokeLevel"] = smokeLevel;
 
-  Serial.print("Sending to server: ");
-  Serial.println(jsonPayload);
+  String body;
+  serializeJson(doc, body);
+  Serial.print("POST: "); Serial.println(body);
 
-  // Send POST request
-  int httpCode = http.POST(jsonPayload);
+  int code = http.POST(body);
+  Serial.printf(code > 0 ? "✓ HTTP %d\n" : "✗ %s\n",
+                code > 0 ? code : 0,
+                code <= 0 ? http.errorToString(code).c_str() : "");
+  http.end();
+}
 
-  // Check response
-  if (httpCode > 0) {
-    Serial.printf("✓ Server Response: HTTP %d\n", httpCode);
-    
-    if (httpCode == 200 || httpCode == 201) {
-      String response = http.getString();
-      Serial.println("Response: " + response);
-      Serial.println("✓ Data saved successfully!");
-    }
-  } else {
-    Serial.printf("✗ HTTP Error: %s\n", http.errorToString(httpCode).c_str());
-    Serial.println("Check if server is running and IP address is correct");
+// ============================================================
+// CALIBRATION — sample idle ADC midpoint for each channel
+// ============================================================
+void calibrateOffsets() {
+  const int N = 3000;
+  long s1 = 0, s2 = 0, sv = 0;
+
+  for (int i = 0; i < N; i++) {
+    s1 += analogRead(CURRENT1_PIN);
+    s2 += analogRead(CURRENT2_PIN);
+    sv += analogRead(VOLTAGE_PIN);
+    delayMicroseconds(100);
   }
 
-  http.end();
-  Serial.println("========================================\n");
+  c1Offset = s1 / (float)N;
+  c2Offset = s2 / (float)N;
+  vOffset  = sv / (float)N;
+}
+
+// ============================================================
+// RMS CURRENT — ACS712 5A (FIXED LOGIC)
+// ============================================================
+float readCurrentRMS(int pin, float offset) {
+  double sumSq = 0.0;
+
+  for (int i = 0; i < SAMPLES; i++) {
+    float s = (float)analogRead(pin) - offset;
+    sumSq += s * s;
+    delayMicroseconds(SAMPLE_DELAY_US);
+  }
+
+  float rmsADC = sqrt(sumSq / SAMPLES);
+  float rmsV   = rmsADC * (ADC_REF / ADC_MAX);
+  float current = rmsV / ACS712_SENSITIVITY;
+
+  return (current < NOISE_FLOOR) ? 0.0f : current;
+}
+
+// ============================================================
+// RMS VOLTAGE — ZMPT101B (FIXED MULTIPLIER)
+// ============================================================
+float readVoltageRMS() {
+  double sumSq = 0.0;
+
+  for (int i = 0; i < SAMPLES; i++) {
+    float s = (float)analogRead(VOLTAGE_PIN) - vOffset;
+    sumSq += s * s;
+    delayMicroseconds(SAMPLE_DELAY_US);
+  }
+
+  float rmsADC = sqrt(sumSq / SAMPLES);
+  float rmsV   = rmsADC * (ADC_REF / ADC_MAX);
+  float voltage = rmsV * VOLTAGE_MULTIPLIER;
+
+  return (voltage < VOLTAGE_NOISE_FLOOR) ? 0.0f : voltage;
+}
+
+// ============================================================
+void connectWiFi() {
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  Serial.print("Connecting to WiFi");
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println("\nConnected! IP: " + WiFi.localIP().toString());
+}
+
+void reconnectWiFi() {
+  Serial.println("Reconnecting WiFi...");
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 }

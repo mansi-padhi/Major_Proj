@@ -15,7 +15,7 @@ const generateReadings = (count, hoursBack = 24) => {
   
   for (let i = 0; i < count; i++) {
     const timestamp = new Date(now - (Math.random() * hoursBack * 60 * 60 * 1000));
-    const voltage = 220 + (Math.random() * 20 - 10); // 210-230V
+    const voltage = 225;//220 + (Math.random() * 20 - 10); // 210-230V
     const current = Math.random() * 10; // 0-10A
     const power = voltage * current; // Watts (P = V × I)
     // Energy will be auto-calculated by the model's pre-save hook

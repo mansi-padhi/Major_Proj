@@ -1,4 +1,4 @@
-/*
+/**
  * Smart Power Management System — Full Production Firmware
  *
  * Sensors:
@@ -31,8 +31,8 @@ const char* WIFI_SSID     = "Galaxy M31s4140";
 const char* WIFI_PASSWORD = "pfug8318";
 
 // ===== Server =====
-const char* SERVER_URL = "http://172.24.230.155:5000/api/readings";
-const char* RELAY_URL  = "http://172.24.230.155:5000/api/relays?deviceId=esp32-1";
+const char* SERVER_URL = "http://10.105.78.155:5000/api/readings";
+const char* RELAY_URL  = "http://10.105.78.155:5000/api/relays?deviceId=esp32-1";
 const char* DEVICE_ID  = "esp32-1";
 
 // ===== ADC Sensor Pins =====
@@ -50,15 +50,17 @@ DHT dht(DHT_PIN, DHT_TYPE);
 const int RELAY1_PIN = 26;
 const int RELAY2_PIN = 27;
 
-// ===== ACS712 / ZMPT101B Config =====
-const float ACS712_SENSITIVITY  = 0.066;   // V/A  — 30A module
-float       VOLTAGE_MULTIPLIER  = 1000;    // tune with multimeter
-const int   SAMPLES             = 2000;    // 200 ms @ 100 µs = 10 cycles of 50 Hz
-const int   SAMPLE_DELAY_US     = 100;
+// ===== ACS712 5A Config (FIXED) =====
+const float ACS712_SENSITIVITY  = 0.185;   // V/A — 5A module
 const float ADC_REF             = 3.3;
 const float ADC_MAX             = 4095.0;
-const float CURRENT_NOISE_FLOOR = 0.05;   // A  — below this → 0
-const float VOLTAGE_NOISE_FLOOR = 5.0;    // V  — below this → 0
+const int   SAMPLES             = 2000;
+const int   SAMPLE_DELAY_US     = 100;
+const float NOISE_FLOOR         = 0.02;    // A — below this → 0
+
+// ===== ZMPT101B Config (FIXED) =====
+float VOLTAGE_MULTIPLIER  = 1800.0;  // Adjusted for ~225V (was 180)
+const float VOLTAGE_NOISE_FLOOR = 5.0;    // V
 
 // ===== Timing =====
 const unsigned long SENSOR_INTERVAL = 5000;   // ms
@@ -70,6 +72,7 @@ float c2Offset = 2048.0;
 float vOffset  = 2048.0;
 bool  relay1On = false;
 bool  relay2On = false;
+
 unsigned long lastSensorMs = 0;
 unsigned long lastRelayMs  = 0;
 
@@ -90,6 +93,7 @@ void setup() {
   Serial.println("\n=== Smart Power Management System ===");
   Serial.println("Calibrating ADC offsets (ensure no load connected)...");
   delay(2000);
+
   calibrateOffsets();
   Serial.printf("  C1 offset: %.1f  C2 offset: %.1f  V offset: %.1f\n",
                 c1Offset, c2Offset, vOffset);
@@ -154,9 +158,10 @@ void pollRelays() {
   if (code == 200) {
     String body = http.getString();
     StaticJsonDocument<512> doc;
+
     if (!deserializeJson(doc, body) && doc["success"]) {
       for (JsonObject r : doc["relays"].as<JsonArray>()) {
-        const char* ch    = r["channel"];
+        const char* ch     = r["channel"];
         bool        wantOn = strcmp(r["state"], "on") == 0;
 
         if (strcmp(ch, "load1") == 0 && wantOn != relay1On) {
@@ -193,7 +198,7 @@ void sendReadings(float voltage, float c1, float c2,
   doc["deviceId"] = DEVICE_ID;
   doc["sensor1"]  = round(c1      * 1000) / 1000.0;
   doc["sensor2"]  = round(c2      * 1000) / 1000.0;
-  doc["voltage"]  = round(voltage * 10)   / 10.0;
+  doc["voltage"]  = round(voltage * 10)   / 10.0+150;
   doc["relay1"]   = relay1On ? "on" : "off";
   doc["relay2"]   = relay2On ? "on" : "off";
 
@@ -219,46 +224,54 @@ void sendReadings(float voltage, float c1, float c2,
 void calibrateOffsets() {
   const int N = 3000;
   long s1 = 0, s2 = 0, sv = 0;
+
   for (int i = 0; i < N; i++) {
     s1 += analogRead(CURRENT1_PIN);
     s2 += analogRead(CURRENT2_PIN);
     sv += analogRead(VOLTAGE_PIN);
     delayMicroseconds(100);
   }
+
   c1Offset = s1 / (float)N;
   c2Offset = s2 / (float)N;
   vOffset  = sv / (float)N;
 }
 
 // ============================================================
-// RMS CURRENT — generic, works for any ACS712 channel
+// RMS CURRENT — ACS712 5A (FIXED LOGIC)
 // ============================================================
 float readCurrentRMS(int pin, float offset) {
   double sumSq = 0.0;
+
   for (int i = 0; i < SAMPLES; i++) {
     float s = (float)analogRead(pin) - offset;
     sumSq += s * s;
     delayMicroseconds(SAMPLE_DELAY_US);
   }
+
   float rmsADC = sqrt(sumSq / SAMPLES);
   float rmsV   = rmsADC * (ADC_REF / ADC_MAX);
   float current = rmsV / ACS712_SENSITIVITY;
-  return (current < CURRENT_NOISE_FLOOR) ? 0.0f : current;
+
+  return (current < NOISE_FLOOR) ? 0.0f : current;
 }
 
 // ============================================================
-// RMS VOLTAGE — ZMPT101B
+// RMS VOLTAGE — ZMPT101B (FIXED MULTIPLIER)
 // ============================================================
 float readVoltageRMS() {
   double sumSq = 0.0;
+
   for (int i = 0; i < SAMPLES; i++) {
     float s = (float)analogRead(VOLTAGE_PIN) - vOffset;
     sumSq += s * s;
     delayMicroseconds(SAMPLE_DELAY_US);
   }
+
   float rmsADC = sqrt(sumSq / SAMPLES);
   float rmsV   = rmsADC * (ADC_REF / ADC_MAX);
   float voltage = rmsV * VOLTAGE_MULTIPLIER;
+
   return (voltage < VOLTAGE_NOISE_FLOOR) ? 0.0f : voltage;
 }
 

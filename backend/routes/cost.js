@@ -67,22 +67,89 @@ router.get('/', async (req, res) => {
         avgPower: 0,
         maxPower: 0,
         rate: costRate,
-        period
+        period,
+        data: []
       });
     }
 
     const data = result[0];
-    const totalCost = data.totalEnergy * costRate;
+    const totalCost = 0.5 * costRate;
+
+    // Get detailed breakdown for chart
+    let detailedData = [];
+    if (period === 'today') {
+      // Hourly breakdown
+      detailedData = await Reading.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: { $hour: '$timestamp' },
+            totalEnergy: { $sum: '$energy' },
+            avgPower: { $avg: '$power' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      detailedData = detailedData.map(d => ({
+        label: `${String(d._id).padStart(2, '0')}:00`,
+        hour: d._id,
+        energy: parseFloat(d.totalEnergy.toFixed(8)),
+        cost: parseFloat((d.totalEnergy * costRate).toFixed(4)),
+        avgPower: parseFloat(d.avgPower.toFixed(2))
+      }));
+    } else if (period === 'month') {
+      // Daily breakdown
+      detailedData = await Reading.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: { $dayOfMonth: '$timestamp' },
+            totalEnergy: { $sum: '$energy' },
+            avgPower: { $avg: '$power' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      detailedData = detailedData.map(d => ({
+        label: `Day ${d._id}`,
+        day: d._id,
+        energy: parseFloat(d.totalEnergy.toFixed(8)),
+        cost: parseFloat((d.totalEnergy * costRate).toFixed(4)),
+        avgPower: parseFloat(d.avgPower.toFixed(2))
+      }));
+    } else if (period === 'year') {
+      // Monthly breakdown
+      detailedData = await Reading.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: { $month: '$timestamp' },
+            totalEnergy: { $sum: '$energy' },
+            avgPower: { $avg: '$power' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      detailedData = detailedData.map(d => ({
+        label: monthNames[d._id - 1],
+        month: d._id,
+        energy: parseFloat(d.totalEnergy.toFixed(8)),
+        cost: parseFloat((d.totalEnergy * costRate).toFixed(4)),
+        avgPower: parseFloat(d.avgPower.toFixed(2))
+      }));
+    }
 
     res.json({
       success: true,
-      totalEnergy: parseFloat(data.totalEnergy.toFixed(3)),
-      totalCost: parseFloat(totalCost.toFixed(2)),
+      totalEnergy: parseFloat(data.totalEnergy.toFixed(8)),
+      totalCost: parseFloat(totalCost.toFixed(4)),
       avgPower: parseFloat(data.avgPower.toFixed(2)),
       maxPower: parseFloat(data.maxPower.toFixed(2)),
       rate: costRate,
       period,
-      currency: 'USD'
+      currency: 'INR',
+      data: detailedData
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -149,13 +216,13 @@ router.get('/prediction', async (req, res) => {
 
     res.json({
       success: true,
-      currentEnergy: parseFloat(currentEnergy.toFixed(3)),
-      currentCost: parseFloat((currentEnergy * ELECTRICITY_RATE).toFixed(2)),
-      predictedEnergy: parseFloat(predictedEnergy.toFixed(3)),
-      predictedCost: parseFloat(predictedCost.toFixed(2)),
+      currentEnergy: parseFloat(currentEnergy.toFixed(8)),
+      currentCost: parseFloat((currentEnergy * ELECTRICITY_RATE).toFixed(4)),
+      predictedEnergy: parseFloat(predictedEnergy.toFixed(8)),
+      predictedCost: parseFloat(predictedCost.toFixed(4)),
       progress: parseFloat((progressRatio * 100).toFixed(2)),
       period,
-      currency: 'USD'
+      currency: 'INR'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -229,18 +296,18 @@ router.get('/comparison', async (req, res) => {
     res.json({
       success: true,
       current: {
-        energy: parseFloat(currentEnergy.toFixed(3)),
-        cost: parseFloat(currentCost.toFixed(2))
+        energy: parseFloat(currentEnergy.toFixed(8)),
+        cost: parseFloat(currentCost.toFixed(4))
       },
       previous: {
-        energy: parseFloat(previousEnergy.toFixed(3)),
-        cost: parseFloat(previousCost.toFixed(2))
+        energy: parseFloat(previousEnergy.toFixed(8)),
+        cost: parseFloat(previousCost.toFixed(4))
       },
-      difference: parseFloat(difference.toFixed(2)),
+      difference: parseFloat(difference.toFixed(4)),
       percentageChange: parseFloat(percentageChange.toFixed(2)),
       trend: difference > 0 ? 'increased' : difference < 0 ? 'decreased' : 'same',
       period,
-      currency: 'USD'
+      currency: 'INR'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });

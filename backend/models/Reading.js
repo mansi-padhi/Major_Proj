@@ -117,7 +117,7 @@ readingSchema.pre('save', async function () {
 // Virtual for cost calculation
 readingSchema.virtual('cost').get(function () {
   const ELECTRICITY_RATE = 7.0; // ₹ per kWh
-  return (this.energy * ELECTRICITY_RATE).toFixed(2);
+  return (this.energy * ELECTRICITY_RATE).toFixed(4);
 });
 
 // Method to get formatted data for frontend
@@ -127,7 +127,7 @@ readingSchema.methods.toFrontend = function () {
     voltage: parseFloat(this.voltage.toFixed(2)),
     current: parseFloat(this.current.toFixed(3)),
     power: parseFloat(this.power.toFixed(2)),
-    energy: parseFloat(this.energy.toFixed(6)),
+    energy: parseFloat(this.energy.toFixed(8)),
     loadId: this.loadId,
     loadName: this.loadName,
     appliance: this.appliance,

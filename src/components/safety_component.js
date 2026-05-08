@@ -6,8 +6,8 @@ const API = 'http://localhost:5000/api';
 const THRESHOLDS = {
   temperature: { warn: 40, crit: 55 },   // °C  — DHT22
   smoke:       { warn: 300, crit: 500 }, // ADC — MQ2
-  voltage:     { warnMin: 210, warnMax: 250, critMin: 190, critMax: 260 }, // V
-  current:     { warn: 8, crit: 40 }     // A
+  voltage:     { warnMin: 210, warnMax: 228, critMin: 200, critMax: 235 }, // V
+  current:     { warn: 2, crit: 1 }     // A
 };
 
 function getSeverity(type, value) {
@@ -228,8 +228,8 @@ class SafetyComponent extends React.Component {
             {[
               { label: 'Temperature', warn: '> 40°C', crit: '> 55°C' },
               { label: 'Smoke (MQ2)', warn: '> 300 ADC', crit: '> 500 ADC' },
-              { label: 'Voltage',     warn: '< 210V or > 250V', crit: '< 190V or > 260V' },
-              { label: 'Current',     warn: '> 8A', crit: '> 40A' }
+              { label: 'Voltage',     warn: '< 210V or > 228V', crit: '< 200V or > 235' },
+              { label: 'Current',     warn: '> 0.7A', crit: '> 1A' }
             ].map(t => (
               <div key={t.label} style={styles.thresholdRow}>
                 <span style={styles.thresholdLabel}>{t.label}</span>

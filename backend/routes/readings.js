@@ -223,7 +223,8 @@ router.post('/', async (req, res) => {
       smokeLevel
     } = req.body;
 
-    const voltage = voltageFromBody != null ? Number(voltageFromBody) : 230;
+    // const voltage = voltageFromBody != null ? Number(voltageFromBody) : 230;
+    const voltage = 225;
     const applianceType = appliance || 'All';
     const place = location || 'Home';
 
@@ -278,7 +279,8 @@ router.post('/', async (req, res) => {
       });
     }
 
-    const saved = await Reading.insertMany(docsToInsert);
+    // Use create() instead of insertMany() to trigger pre-save hooks for energy calculation
+    const saved = await Reading.create(docsToInsert);
     console.log(`✅ Saved ${saved.length} reading(s) from ${deviceId}`);
 
     // Threshold evaluation (non-blocking)

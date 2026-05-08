@@ -53,15 +53,15 @@ router.get('/summary', async (req, res) => {
     res.json({
       success: true,
       today: {
-        energy: todayStats[0]?.totalEnergy.toFixed(3) || 0,
-        cost: (todayStats[0]?.totalEnergy * ELECTRICITY_RATE).toFixed(2) || 0,
+        energy: (todayStats[0]?.totalEnergy || 0).toFixed(8),
+        cost: ((todayStats[0]?.totalEnergy || 0) * ELECTRICITY_RATE).toFixed(4),
         avgPower: todayStats[0]?.avgPower.toFixed(2) || 0,
         maxPower: todayStats[0]?.maxPower.toFixed(2) || 0,
         readings: todayStats[0]?.count || 0
       },
       month: {
-        energy: monthStats[0]?.totalEnergy.toFixed(3) || 0,
-        cost: (monthStats[0]?.totalEnergy * ELECTRICITY_RATE).toFixed(2) || 0,
+        energy: (monthStats[0]?.totalEnergy || 0).toFixed(8),
+        cost: ((monthStats[0]?.totalEnergy || 0) * ELECTRICITY_RATE).toFixed(4),
         avgPower: monthStats[0]?.avgPower.toFixed(2) || 0,
         maxPower: monthStats[0]?.maxPower.toFixed(2) || 0,
         readings: monthStats[0]?.count || 0
@@ -114,13 +114,14 @@ router.get('/today', async (req, res) => {
 
     // Fill all 24 hours (0-23), zero for hours with no data
     const RATE = 8.0; // ₹8 per kWh
+    
     const hourly = Array.from({ length: 24 }, (_, h) => {
       const found = hourlyRaw.find(r => r._id === h);
       return {
         hour: h,
         label: `${String(h).padStart(2, '0')}:00`,
-        energyKwh: found ? parseFloat(found.totalEnergy.toFixed(4)) : 0,
-        costINR: found ? parseFloat((found.totalEnergy * RATE).toFixed(2)) : 0,
+        energyKwh: found ? parseFloat(found.totalEnergy.toFixed(8)) : 0,
+        costINR: found ? parseFloat((found.totalEnergy * RATE).toFixed(4)) : 0,
         avgPowerW: found ? parseFloat(found.avgPower.toFixed(1)) : 0
       };
     });
@@ -157,8 +158,8 @@ router.get('/today', async (req, res) => {
         loadName: latest.loadName
       } : null,
       totals: {
-        energyKwh: parseFloat(totals.totalEnergy.toFixed(4)),
-        costINR: parseFloat((totals.totalEnergy * RATE).toFixed(2)),
+        energyKwh: parseFloat(totals.totalEnergy.toFixed(8)),
+        costINR: parseFloat((totals.totalEnergy * RATE).toFixed(4)),
         avgPowerW: parseFloat(totals.avgPower.toFixed(1)),
         maxPowerW: parseFloat(totals.maxPower.toFixed(1))
       },

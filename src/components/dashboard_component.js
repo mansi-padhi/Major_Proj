@@ -74,7 +74,7 @@ class DashboardComponent extends React.Component {
       label: h.label,
       value: h.energyKwh,
       color: i === currentHour ? '#00D4FF' : '#4A90D9',
-      toolText: `${h.label}: ${h.energyKwh} kWh  |  ₹${h.costINR}  |  Avg ${h.avgPowerW} W`
+      toolText: `${h.label}: ${h.energyKwh.toFixed(8)} kWh  |  ₹${h.costINR.toFixed(4)}  |  Avg ${h.avgPowerW} W`
     }));
 
     return {
@@ -204,8 +204,8 @@ class DashboardComponent extends React.Component {
 
         {/* ── Summary stat cards ── */}
         <div style={styles.cardRow}>
-          <StatCard label="Energy Today" value={`${totals.energyKwh || 0} kWh`} color="#00D4FF" />
-          <StatCard label="Cost Today" value={`₹${totals.costINR || 0}`} color="#FFA500" />
+          <StatCard label="Energy Today" value={`${parseFloat(totals.energyKwh || 0).toFixed(8)} kWh`} color="#00D4FF" />
+          <StatCard label="Cost Today" value={`₹${parseFloat(totals.costINR || 0).toFixed(4)}`} color="#FFA500" />
           <StatCard label="Avg Power" value={`${totals.avgPowerW || 0} W`} color="#00C853" />
           <StatCard label="Peak Power" value={`${totals.maxPowerW || 0} W`} color="#FF3D00" />
         </div>
